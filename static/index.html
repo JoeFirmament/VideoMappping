@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频流标定系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <h1 class="page-title">视频流标定系统</h1>
+            <p class="page-subtitle">实时视频流采集与坐标转换</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">视频监控</h2>
+                <div id="status" class="status-panel">状态: 正在连接服务器...</div>
+            </div>
+            
+            <div class="grid grid-2">
+                <div>
+                    <div class="video-container">
+                        <img id="video" class="video-canvas" src="" alt="视频流">
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat">
+                            <span class="stat-label">FPS</span>
+                            <span id="fps" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">分辨率</span>
+                            <span id="resolution" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">帧间隔</span>
+                            <span id="latency" class="stat-value">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls mb-3">
+                        <button id="startBtn" class="btn btn-primary" disabled>开始</button>
+                        <button id="stopBtn" class="btn btn-danger" disabled>停止</button>
+                        <button id="fullscreenBtn" class="btn btn-secondary">全屏</button>
+                    </div>
+                </div>
+                
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3 class="mb-2">摄像头设置</h3>
+                        <div class="form-group mb-2">
+                            <label class="form-label">分辨率选择</label>
+                            <select id="resolutionSelect" class="form-select">
+                                <option value="640,480">640 × 480</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2">标定操作</h3>
+                        <div class="control-row">
+                            <button id="toggleCalibrationBtn" class="btn btn-primary">进入标定模式</button>
+                            <button id="computeHomographyBtn" class="btn btn-success" disabled>计算单应性矩阵</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2">ArUco 标记检测</h3>
+                        <div class="control-row">
+                            <button id="toggleArUcoBtn" class="btn btn-primary">启用 ArUco 模式</button>
+                            <button id="calibrateFromArUcoBtn" class="btn btn-success" disabled>从 ArUco 标记标定</button>
+                        </div>
+                        <div class="control-row mt-2">
+                            <button id="saveMarkerCoordsBtn" class="btn btn-secondary" disabled>保存标记坐标</button>
+                            <button id="loadMarkerCoordsBtn" class="btn btn-secondary">加载标记坐标</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2">坐标系设置</h3>
+                        <div class="control-row">
+                            <button id="setOriginBtn" class="btn btn-primary">设置原点</button>
+                            <button id="toggleCoordTypeBtn" class="btn btn-secondary">切换坐标类型</button>
+                        </div>
+                        <div class="coordinate-system-info mt-2">
+                            <div class="info-item">
+                                <span class="info-label">坐标类型:</span>
+                                <span id="coordTypeDisplay" class="info-value">直角坐标</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">原点位置:</span>
+                                <span id="originDisplay" class="info-value">(0, 0)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2">调试信息</h3>
+                        <div class="debug-panel">
+                            <div class="debug-toggle">
+                                <label class="switch">
+                                    <input type="checkbox" id="debugToggle">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span>显示调试信息</span>
+                            </div>
+                            <div id="debugInfo" class="debug-info" style="display: none;">
+                                <div class="info-item">
+                                    <span class="info-label">单应性矩阵:</span>
+                                    <pre id="homographyMatrix" class="info-value matrix">-</pre>
+                                    <button id="exportMatrixBtn" class="btn btn-sm btn-secondary">导出矩阵</button>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">检测到的标记:</span>
+                                    <span id="detectedMarkersCount" class="info-value">0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">最近操作:</span>
+                                    <span id="lastOperation" class="info-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="calibrationPanel" class="calibration-panel" style="display: none;">
+                <h3>单应性矩阵标定</h3>
+                <p>点击视频添加标定点。至少需要 4 个点。</p>
+                
+                <div class="calibration-controls">
+                    <div class="ground-coordinates">
+                        <label>地面坐标 X:</label>
+                        <input type="number" id="groundX" class="form-input" value="0">
+                        <label>地面坐标 Y:</label>
+                        <input type="number" id="groundY" class="form-input" value="0">
+                    </div>
+                    
+                    <div class="calibration-buttons">
+                        <button id="removeLastPointBtn" class="btn btn-danger">移除最后一个点</button>
+                        <button id="clearPointsBtn" class="btn btn-danger">清除所有点</button>
+                    </div>
+                    
+                    <div class="calibration-file">
+                        <button id="saveCalibrationBtn" class="btn btn-success">保存标定结果</button>
+                        <button id="loadCalibrationBtn" class="btn btn-primary">加载标定结果</button>
+                    </div>
+                </div>
+                
+                <div class="calibration-points">
+                    <h4>标定点列表</h4>
+                    <div id="pointsList"></div>
+                </div>
+            </div>
+            
+            <div id="arucoPanel" class="aruco-panel" style="display: none;">
+                <h3>ArUco 标记检测</h3>
+                <p>系统将自动检测视频中的 ArUco 标记。为每个标记设置地面坐标。</p>
+                
+                <div class="aruco-marker-settings">
+                    <h4>标记坐标设置</h4>
+                    <div class="form-group">
+                        <label>标记 ID:</label>
+                        <input type="number" id="markerId" class="form-input" min="0" max="49" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>地面坐标 X:</label>
+                        <input type="number" id="markerGroundX" class="form-input" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>地面坐标 Y:</label>
+                        <input type="number" id="markerGroundY" class="form-input" value="0">
+                    </div>
+                    <button id="setMarkerCoordBtn" class="btn btn-primary">设置标记坐标</button>
+                </div>
+                
+                <div class="aruco-markers-list">
+                    <h4>已设置标记列表</h4>
+                    <div id="markersList" class="markers-list-container"></div>
+                </div>
+            </div>
+            
+            <div id="coordinateTestPanel" class="coordinate-test-panel" style="display: none;">
+                <h3>坐标转换测试</h3>
+                <p>点击视频将图像坐标转换为地面坐标。</p>
+                
+                <div class="coordinate-display">
+                    <div>
+                        <span>图像 X:</span>
+                        <span id="imageX">0</span>
+                    </div>
+                    <div>
+                        <span>图像 Y:</span>
+                        <span id="imageY">0</span>
+                    </div>
+                    <div>
+                        <span>地面 X:</span>
+                        <span id="convertedGroundX">0</span>
+                    </div>
+                    <div>
+                        <span>地面 Y:</span>
+                        <span id="convertedGroundY">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=20250529-1"></script>
+</body>
+</html>

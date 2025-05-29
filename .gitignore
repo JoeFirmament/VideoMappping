@@ -1,0 +1,35 @@
+# 构建目录
+/build/
+
+# 编译产物
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# 临时文件
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 备份文件
+*.backup
+*.bak
+
+# 日志文件
+*.log
+
+# 配置文件（可能包含敏感信息）
+config.json
+
+# 视频和图像文件（通常很大）
+*.mp4
+*.avi
+*.mov
+*.jpg
+*.jpeg
+*.png
+*.gif

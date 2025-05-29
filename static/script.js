@@ -1,0 +1,383 @@
+class VideoStream {
+    constructor() {
+        // 基本元素
+        this.video = document.getElementById('video');
+        this.statusElement = document.getElementById('status');
+        this.fpsElement = document.getElementById('fps');
+        this.resolutionElement = document.getElementById('resolution');
+        this.latencyElement = document.getElementById('latency');
+        this.startBtn = document.getElementById('startBtn');
+        this.stopBtn = document.getElementById('stopBtn');
+        this.fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        // 调试相关元素
+        this.debugToggle = document.getElementById('debugToggle');
+        this.debugInfo = document.getElementById('debugInfo');
+        this.homographyMatrix = document.getElementById('homographyMatrix');
+        this.lastOperation = document.getElementById('lastOperation');
+        this.detectedMarkersCount = document.getElementById('detectedMarkersCount');
+        this.exportMatrixBtn = document.getElementById('exportMatrixBtn');
+        
+        // 初始化变量
+        this.ws = null;
+        this.connected = false;
+        this.frameCount = 0;
+        this.lastFrameCount = 0;
+        this.lastFrameTime = 0;
+        this.frameTimes = [];
+        this.fps = 0;
+        this.latency = 0;
+        this.calibrationMode = false;
+        this.calibrated = false;
+        this.arucoMode = false;
+        this.calibrationPoints = [];
+        this.markerCoordinates = {};
+        this.rawHomographyMatrix = null;
+        
+        // 初始化
+        this.initialize();
+    }
+    
+    initialize() {
+        this.setupEventListeners();
+        this.connect();
+        
+        // 启动FPS计数器
+        setInterval(() => this.updateFps(), 1000);
+    }
+    
+    setupEventListeners() {
+        // 开始按钮
+        if (this.startBtn) {
+            this.startBtn.addEventListener('click', () => {
+                this.start();
+            });
+        }
+        
+        // 停止按钮
+        if (this.stopBtn) {
+            this.stopBtn.addEventListener('click', () => {
+                this.stop();
+            });
+        }
+        
+        // 全屏按钮
+        if (this.fullscreenBtn) {
+            this.fullscreenBtn.addEventListener('click', () => {
+                this.toggleFullscreen();
+            });
+        }
+        
+        // 调试信息开关
+        if (this.debugToggle) {
+            this.debugToggle.addEventListener('change', () => {
+                if (this.debugInfo) {
+                    this.debugInfo.style.display = this.debugToggle.checked ? 'block' : 'none';
+                }
+            });
+        }
+        
+        // 导出矩阵按钮
+        if (this.exportMatrixBtn) {
+            this.exportMatrixBtn.addEventListener('click', () => {
+                this.exportHomographyMatrix();
+            });
+        }
+    }
+    
+    connect() {
+        // 创建WebSocket连接
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        this.ws = new WebSocket(wsUrl);
+        
+        this.ws.onopen = () => {
+            console.log('WebSocket连接已建立');
+            this.connected = true;
+            this.updateStatus('connected', '已连接');
+        };
+        
+        this.ws.onclose = (event) => {
+            console.log('WebSocket连接已关闭', event);
+            this.connected = false;
+            this.updateStatus('disconnected', '连接已断开');
+            
+            // 尝试重新连接
+            setTimeout(() => this.connect(), 2000);
+        };
+        
+        this.ws.onerror = (error) => {
+            console.error('WebSocket错误:', error);
+            this.updateStatus('error', '连接错误');
+        };
+        
+        this.ws.onmessage = (event) => {
+            if (typeof event.data === 'string') {
+                this.handleTextMessage(event.data);
+            } else {
+                this.handleBinaryMessage(event.data);
+            }
+        };
+    }
+    
+    handleTextMessage(message) {
+        try {
+            const data = JSON.parse(message);
+            console.log('收到消息:', data);
+            
+            if (data.type === 'status') {
+                this.updateStatus(data.status, data.message);
+            } else if (data.type === 'error') {
+                console.error('服务器错误:', data.message);
+                this.updateStatus('error', `错误: ${data.message}`);
+                this.updateLastOperation(`错误: ${data.message}`);
+            } else if (data.type === 'frame_info') {
+                // 更新分辨率信息
+                console.log(`收到帧信息: ${data.width}x${data.height}`);
+                if (this.resolutionElement) {
+                    this.resolutionElement.textContent = `${data.width}×${data.height}`;
+                }
+            } else if (data.type === 'calibration_result') {
+                // 处理标定结果
+                console.log('收到标定结果:', data);
+                
+                if (data.success) {
+                    this.calibrated = true;
+                    
+                    // 更新单应性矩阵显示
+                    if (data.homography_matrix) {
+                        this.updateHomographyMatrix(data.homography_matrix);
+                        this.updateLastOperation('标定成功，单应性矩阵已更新');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('处理文本消息时出错:', error);
+        }
+    }
+    
+    handleBinaryMessage(data) {
+        try {
+            // 处理二进制消息（视频帧）
+            const now = performance.now();
+            
+            // 创建Blob URL
+            const blob = new Blob([data], { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            
+            // 更新视频元素
+            if (this.video) {
+                this.video.onload = () => {
+                    URL.revokeObjectURL(url);
+                    
+                    // 计算延迟
+                    const frameTime = now - this.lastFrameTime;
+                    this.lastFrameTime = now;
+                    
+                    // 更新延迟（平滑处理）
+                    this.frameTimes.push(frameTime);
+                    if (this.frameTimes.length > 10) this.frameTimes.shift();
+                    const avgFrameTime = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+                    this.latency = Math.round(avgFrameTime);
+                    
+                    if (this.latencyElement) {
+                        this.latencyElement.textContent = `${this.latency} ms`;
+                    }
+                    
+                    // 更新分辨率
+                    if (this.resolutionElement && this.video.videoWidth && this.video.videoHeight) {
+                        this.resolutionElement.textContent = `${this.video.videoWidth}×${this.video.videoHeight}`;
+                    }
+                    
+                    // 更新帧计数
+                    this.frameCount++;
+                };
+                
+                this.video.src = url;
+            }
+        } catch (error) {
+            console.error('处理二进制消息时出错:', error);
+        }
+    }
+    
+    updateStatus(status, message) {
+        if (this.statusElement) {
+            this.statusElement.textContent = message || status;
+            this.statusElement.className = `status ${status}`;
+        }
+    }
+    
+    updateFps() {
+        // 计算FPS
+        const fps = this.frameCount - this.lastFrameCount;
+        this.lastFrameCount = this.frameCount;
+        this.fps = fps;
+        
+        // 更新FPS显示
+        if (this.fpsElement) {
+            this.fpsElement.textContent = `${this.fps} FPS`;
+        }
+    }
+    
+    start() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                action: 'start_stream'
+            }));
+        }
+    }
+    
+    stop() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                action: 'stop_stream'
+            }));
+        }
+    }
+    
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            this.video.requestFullscreen().catch(err => {
+                console.error(`无法进入全屏模式: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    
+    toggleCalibrationMode() {
+        console.log('切换标定模式');
+        
+        // 切换标定模式状态
+        this.calibrationMode = !this.calibrationMode;
+        
+        // 更新UI
+        if (this.toggleCalibrationBtn) {
+            this.toggleCalibrationBtn.textContent = this.calibrationMode ? '退出标定模式' : '进入标定模式';
+        }
+        
+        // 显示/隐藏标定面板
+        if (this.calibrationPanel) {
+            this.calibrationPanel.style.display = this.calibrationMode ? 'block' : 'none';
+        }
+        
+        // 显示/隐藏坐标测试面板
+        if (this.coordinateTestPanel) {
+            this.coordinateTestPanel.style.display = this.calibrated && !this.calibrationMode ? 'block' : 'none';
+        }
+        
+        // 发送切换标定模式命令到服务器
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                action: 'toggle_calibration_mode'
+            }));
+        }
+        
+        // 更新状态
+        this.updateStatus(this.calibrationMode ? 'info' : 'success', 
+                         this.calibrationMode ? '已进入标定模式' : '已退出标定模式');
+    }
+    
+    updateHomographyMatrix(matrix) {
+        if (this.homographyMatrix && matrix) {
+            // 保存原始矩阵数据用于导出
+            this.rawHomographyMatrix = matrix;
+            
+            // 格式化矩阵显示
+            let formattedMatrix = '';
+            
+            // 检查矩阵格式（数组长度为9的一维数组）
+            if (Array.isArray(matrix) && matrix.length === 9) {
+                for (let i = 0; i < 3; i++) {
+                    let row = [];
+                    for (let j = 0; j < 3; j++) {
+                        row.push(matrix[i*3 + j].toFixed(4));
+                    }
+                    formattedMatrix += row.join('  ') + '\n';
+                }
+            } 
+            // 如果是3x3矩阵格式
+            else if (Array.isArray(matrix) && matrix.length === 3 && Array.isArray(matrix[0])) {
+                for (let i = 0; i < 3; i++) {
+                    let row = [];
+                    for (let j = 0; j < 3; j++) {
+                        row.push(matrix[i][j].toFixed(4));
+                    }
+                    formattedMatrix += row.join('  ') + '\n';
+                }
+            }
+            // 如果是字符串格式，直接显示
+            else if (typeof matrix === 'string') {
+                formattedMatrix = matrix;
+            }
+            // 其他情况，尝试转换为字符串
+            else {
+                formattedMatrix = JSON.stringify(matrix, null, 2);
+            }
+            
+            this.homographyMatrix.textContent = formattedMatrix;
+        }
+    }
+    
+    updateLastOperation(operation) {
+        if (this.lastOperation) {
+            this.lastOperation.textContent = operation;
+        }
+    }
+    
+    exportHomographyMatrix() {
+        // 检查是否有矩阵数据
+        if (!this.homographyMatrix || this.homographyMatrix.textContent === '-') {
+            alert('单应性矩阵数据不可用，请先进行标定。');
+            return;
+        }
+        
+        // 创建导出数据
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            description: '单应性矩阵（从图像到地面坐标的转换）'
+        };
+        
+        // 使用原始矩阵数据（如果可用）
+        if (this.rawHomographyMatrix) {
+            exportData.homography_matrix = this.rawHomographyMatrix;
+        } else {
+            // 如果原始数据不可用，使用格式化的文本
+            exportData.homography_matrix = this.homographyMatrix.textContent;
+        }
+        
+        // 添加矩阵的格式化文本表示
+        exportData.formatted_matrix = this.homographyMatrix.textContent;
+        
+        // 将数据转换为JSON格式
+        const jsonData = JSON.stringify(exportData, null, 2);
+        
+        // 创建Blob对象
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        
+        // 创建下载链接
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `homography_matrix_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        
+        // 触发下载
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+        
+        console.log('已导出单应性矩阵');
+        this.updateLastOperation('导出单应性矩阵');
+    }
+}
+
+// 当文档加载完成时初始化
+document.addEventListener('DOMContentLoaded', () => {
+    window.videoStream = new VideoStream();
+});
