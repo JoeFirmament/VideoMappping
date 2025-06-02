@@ -21,6 +21,7 @@ add_executable(video_mapping
     src/main.cpp
     src/VideoStreamer.cpp
     src/HomographyMapper.cpp
+    src/CameraCalibrator.cpp
 )
 
 # 链接库

@@ -29,7 +29,10 @@ bool VideoStreamer::initialize(int camera_id, int width, int height, int fps) {
     
     // 如果指定了摄像头ID，则使用指定的摄像头
     if (camera_id >= 0) {
-        cap_.open(camera_id);
+        if (!cap_.open(camera_id, cv::CAP_V4L2)) {
+            cerr << "Error: Could not open camera " << camera_id << " with V4L2 backend" << endl;
+            return false;
+        }
     } else {
         // 否则尝试自动检测摄像头
         if (!autoDetectCamera()) {
@@ -71,20 +74,6 @@ bool VideoStreamer::initialize(int camera_id, int width, int height, int fps) {
     width_ = width;
     height_ = height;
     fps_ = fps;
-
-    // 尝试自动检测和选择摄像头设备
-    if (camera_id < 0) {
-        if (!autoDetectCamera()) {
-            cerr << "Error: Could not auto-detect any camera device" << endl;
-            return false;
-        }
-    } else {
-        // 尝试打开指定的摄像头
-        if (!cap_.open(camera_id, cv::CAP_V4L2)) {
-            cerr << "Error: Could not open camera " << camera_id << " with V4L2 backend" << endl;
-            return false;
-        }
-    }
 
     // 设置摄像头参数
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
@@ -646,6 +635,34 @@ void VideoStreamer::captureThread() {
                 continue;
             }
             
+            // 如果已经完成相机标定，则进行图像校正
+            if (isCameraCalibrated()) {
+                frame = cameraCalibrator_.undistortImage(frame);
+            }
+            
+            // 如果处于相机标定模式，在图像上绘制棋盘格角点
+            if (cameraCalibrationMode_) {
+                cv::Mat gray;
+                cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+                cv::Size boardSize = cv::Size(9, 6); // 使用默认棋盘格大小
+                std::vector<cv::Point2f> corners;
+                bool found = cv::findChessboardCorners(gray, boardSize, corners);
+                
+                if (found) {
+                    cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
+                        cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+                    cv::drawChessboardCorners(frame, boardSize, corners, found);
+                    
+                    // 在画面上显示检测状态
+                    cv::putText(frame, "Chessboard found!", cv::Point(10, 30),
+                              cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+                } else {
+                    // 显示未检测到棋盘格的信息
+                    cv::putText(frame, "No chessboard found", cv::Point(10, 30),
+                              cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+                }
+            }
+            
             // 更新当前帧
             {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -656,4 +673,63 @@ void VideoStreamer::captureThread() {
             this_thread::sleep_for(chrono::milliseconds(100));
         }
     }
+}
+
+// 相机标定相关方法实现
+bool VideoStreamer::isCameraCalibrationMode() const {
+    return cameraCalibrationMode_;
+}
+
+bool VideoStreamer::toggleCameraCalibrationMode() {
+    cameraCalibrationMode_ = !cameraCalibrationMode_;
+    return cameraCalibrationMode_;
+}
+
+bool VideoStreamer::addCalibrationImage() {
+    cv::Mat frame;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        frame = frame_.clone();
+    }
+    
+    if (frame.empty()) {
+        std::cerr << "No frame available for calibration" << std::endl;
+        return false;
+    }
+    
+    return cameraCalibrator_.addCalibrationImage(frame);
+}
+
+bool VideoStreamer::performCameraCalibration() {
+    return cameraCalibrator_.calibrate();
+}
+
+bool VideoStreamer::saveCameraCalibration(const std::string& filename) {
+    std::string filepath = filename.empty() ? cameraCalibrationFilePath_ : filename;
+    return cameraCalibrator_.saveCalibrationData(filepath);
+}
+
+bool VideoStreamer::loadCameraCalibration(const std::string& filename) {
+    std::string filepath = filename.empty() ? cameraCalibrationFilePath_ : filename;
+    return cameraCalibrator_.loadCalibrationData(filepath);
+}
+
+void VideoStreamer::setChessboardSize(int width, int height) {
+    cameraCalibrator_.setChessboardSize(width, height);
+}
+
+void VideoStreamer::setSquareSize(float size) {
+    cameraCalibrator_.setSquareSize(size);
+}
+
+double VideoStreamer::getCalibrationError() const {
+    return cameraCalibrator_.getCalibrationError();
+}
+
+bool VideoStreamer::isCameraCalibrated() const {
+    return cameraCalibrator_.isCalibrated();
+}
+
+size_t VideoStreamer::getCalibrationImageCount() const {
+    return cameraCalibrator_.getImageCount();
 }

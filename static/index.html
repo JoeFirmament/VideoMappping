@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频流标定系统</title>
+    
+    <!-- 防缓存的meta标签 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -55,6 +61,32 @@
                             <select id="resolutionSelect" class="form-select">
                                 <option value="640,480">640 × 480</option>
                             </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2">相机标定</h3>
+                        <div class="control-row">
+                            <button id="toggleCameraCalibrationBtn" class="btn btn-primary">相机标定模式</button>
+                            <button id="addCalibrationImageBtn" class="btn btn-success" disabled>采集标定图像</button>
+                        </div>
+                        <div class="control-row mt-2">
+                            <button id="performCameraCalibrationBtn" class="btn btn-success" disabled>执行标定</button>
+                            <button id="saveCameraCalibrationBtn" class="btn btn-secondary" disabled>保存标定结果</button>
+                        </div>
+                        <div class="control-row mt-2">
+                            <input type="number" id="boardWidthInput" placeholder="棋盘格宽度" value="9" class="form-control" />
+                            <input type="number" id="boardHeightInput" placeholder="棋盘格高度" value="6" class="form-control" />
+                        </div>
+                        <div class="control-row mt-2">
+                            <input type="number" id="squareSizeInput" placeholder="方格大小(mm)" value="25" class="form-control" />
+                            <button id="setBoardSizeBtn" class="btn btn-secondary">设置棋盘格参数</button>
+                        </div>
+                        <div class="mt-2">
+                            <div class="info-item">
+                                <span class="info-label">重投影误差:</span>
+                                <span id="calibrationErrorDisplay" class="info-value">-</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -208,6 +240,12 @@
         </div>
     </div>
 
-    <script src="script.js?v=20250529-1"></script>
+    <script>
+        // 动态加载JS文件，确保不被缓存
+        const timestamp = new Date().getTime();
+        const script = document.createElement('script');
+        script.src = `script.js?t=${timestamp}`;
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>

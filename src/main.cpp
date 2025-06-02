@@ -353,6 +353,93 @@ int main(int argc, char** argv) {
                     conn.send_text("{\"type\":\"ground_coordinates\",\"x\":"
                                 + std::to_string(groundPoint.x) + ",\"y\":"
                                 + std::to_string(groundPoint.y) + "}");
+                } else if (action == "toggle_camera_calibration_mode") {
+                    // 切换相机标定模式
+                    bool mode = streamer.toggleCameraCalibrationMode();
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"calibration_mode\":" + std::string(mode ? "true" : "false") + ","
+                                         "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + "}";
+                    conn.send_text(response);
+                    
+                } else if (action == "add_calibration_image") {
+                    // 添加标定图像
+                    bool success = streamer.addCalibrationImage();
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"success\":" + std::string(success ? "true" : "false") + ","
+                                         "\"image_count\":" + std::to_string(streamer.getCalibrationImageCount()) + "}";
+                    conn.send_text(response);
+                    
+                } else if (action == "perform_camera_calibration") {
+                    // 执行相机标定
+                    bool success = streamer.performCameraCalibration();
+                    double error = streamer.getCalibrationError();
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"success\":" + std::string(success ? "true" : "false") + ","
+                                         "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + ","
+                                         "\"error\":" + std::to_string(error) + "}";
+                    conn.send_text(response);
+                    
+                } else if (action == "save_camera_calibration") {
+                    // 保存标定结果
+                    bool success = streamer.saveCameraCalibration();
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"save_success\":" + std::string(success ? "true" : "false") + "}";
+                    conn.send_text(response);
+                    
+                } else if (action == "set_board_size") {
+                    // 解析棋盘格参数
+                    int width = 9, height = 6; // 默认值
+                    float square_size = 0.025f; // 默认值 25mm
+                    
+                    // 解析width字段
+                    size_t width_pos = data.find("\"width\":");
+                    if (width_pos != std::string::npos) {
+                        size_t start = width_pos + 8;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            width = std::stoi(data.substr(start, end - start));
+                        }
+                    }
+                    
+                    // 解析height字段
+                    size_t height_pos = data.find("\"height\":");
+                    if (height_pos != std::string::npos) {
+                        size_t start = height_pos + 9;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            height = std::stoi(data.substr(start, end - start));
+                        }
+                    }
+                    
+                    // 解析square_size字段
+                    size_t size_pos = data.find("\"square_size\":");
+                    if (size_pos != std::string::npos) {
+                        size_t start = size_pos + 14;
+                        size_t end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            square_size = std::stof(data.substr(start, end - start));
+                        }
+                    }
+                    
+                    // 设置棋盘格参数
+                    streamer.setChessboardSize(width, height);
+                    streamer.setSquareSize(square_size);
+                    
+                    // 发送确认消息
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"board_size_set\":true,"
+                                         "\"width\":" + std::to_string(width) + ","
+                                         "\"height\":" + std::to_string(height) + ","
+                                         "\"square_size\":" + std::to_string(square_size) + "}";
+                    conn.send_text(response);
                 }
             } catch (const std::exception& e) {
                 std::cout << "Error processing message: " << e.what() << std::endl;
@@ -415,6 +502,10 @@ int main(int argc, char** argv) {
         
         res.code = 200;
         res.set_header("Content-Type", content_type);
+        // 添加禁用缓存的 HTTP 头
+        res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        res.set_header("Pragma", "no-cache");
+        res.set_header("Expires", "0");
         res.body = buffer.str();
         res.end();
     });

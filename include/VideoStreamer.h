@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <crow.h>
 #include "HomographyMapper.h"
+#include "CameraCalibrator.h"
 
 using namespace std;
 using Connection = crow::websocket::connection*;
@@ -50,6 +51,19 @@ public:
     bool saveMarkerCoordinates(const std::string& filename = "");
     bool loadMarkerCoordinates(const std::string& filename = "");
 
+    // 相机标定相关方法
+    bool isCameraCalibrationMode() const;
+    bool toggleCameraCalibrationMode();
+    bool addCalibrationImage();  // 添加当前帧作为标定图像
+    bool performCameraCalibration();  // 执行相机标定
+    bool saveCameraCalibration(const std::string& filename = "");
+    bool loadCameraCalibration(const std::string& filename = "");
+    void setChessboardSize(int width, int height);
+    void setSquareSize(float size);
+    double getCalibrationError() const;
+    bool isCameraCalibrated() const;
+    size_t getCalibrationImageCount() const; // 新增方法
+
 private:
     void captureThread(); // 添加线程函数声明
     void sendCameraInfo(Connection conn); // 发送摄像头信息给客户端
@@ -73,4 +87,9 @@ private:
     // ArUco 标记相关成员
     bool arucoMode_{false};  // ArUco 标记检测模式
     std::string markerCoordinatesFilePath_{"/home/radxa/Qworkspace/VideoMapping/data/markers.xml"}; // 标记地面坐标文件路径
+
+    // 相机标定相关成员
+    CameraCalibrator cameraCalibrator_; // 相机标定器
+    bool cameraCalibrationMode_{false}; // 相机标定模式标志
+    std::string cameraCalibrationFilePath_{"/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml"}; // 相机标定文件路径
 };
