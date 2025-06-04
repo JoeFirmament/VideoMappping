@@ -15,6 +15,10 @@ VideoStreamer::VideoStreamer() : width_(1280), height_(720), fps_(30) {
         file.close();
         loadHomography(calibrationFilePath_);
     }
+    
+    // 启用保存标定图像功能
+    cameraCalibrator_.setSaveCalibrationImages(true);
+    std::cout << "Camera calibrator initialized, saveCalibrationImages set to true" << std::endl;
 }
 
 VideoStreamer::~VideoStreamer() {
@@ -319,6 +323,10 @@ void VideoStreamer::sendCameraInfo(Connection conn) {
         }
         res_array += "]";
         
+        // 获取棋盘格参数
+        cv::Size boardSize = cameraCalibrator_.getBoardSize();
+        float squareSize = cameraCalibrator_.getSquareSize();
+        
         // 构建摄像头信息消息
         std::string info_message = std::string("{\"type\":\"camera_info\",")
                               + "\"current_width\":"
@@ -331,6 +339,12 @@ void VideoStreamer::sendCameraInfo(Connection conn) {
                               + (calibrationMode_ ? "true" : "false") + ","
                               + "\"calibrated\":"
                               + (homographyMapper_.isCalibrated() ? "true" : "false") + ","
+                              + "\"board_width\":"
+                              + std::to_string(boardSize.width) + ","
+                              + "\"board_height\":"
+                              + std::to_string(boardSize.height) + ","
+                              + "\"square_size\":"
+                              + std::to_string(int(squareSize * 1000)) + ","
                               + "\"resolutions\":"
                               + res_array + "}";
         
@@ -642,25 +656,26 @@ void VideoStreamer::captureThread() {
             
             // 如果处于相机标定模式，在图像上绘制棋盘格角点
             if (cameraCalibrationMode_) {
-                cv::Mat gray;
-                cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-                cv::Size boardSize = cv::Size(9, 6); // 使用默认棋盘格大小
+                // 使用公共棋盘格检测方法
                 std::vector<cv::Point2f> corners;
-                bool found = cv::findChessboardCorners(gray, boardSize, corners);
+                bool found = cameraCalibrator_.detectChessboard(frame, corners, false);
                 
                 if (found) {
-                    cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
-                        cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
-                    cv::drawChessboardCorners(frame, boardSize, corners, found);
+                    // 在图像上绘制检测到的角点
+                    cv::drawChessboardCorners(frame, cameraCalibrator_.getBoardSize(), corners, found);
                     
-                    // 在画面上显示检测状态
-                    cv::putText(frame, "Chessboard found!", cv::Point(10, 30),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+                    // 简洁的状态提示 - 右上角，不影响画面主体
+                    cv::putText(frame, "Chessboard OK", cv::Point(frame.cols - 160, 30),
+                              cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
                 } else {
-                    // 显示未检测到棋盘格的信息
-                    cv::putText(frame, "No chessboard found", cv::Point(10, 30),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+                    // 简洁的提示信息 - 右上角显示
+                    cv::putText(frame, "No chessboard", cv::Point(frame.cols - 150, 30),
+                              cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2, cv::LINE_AA);
                 }
+            } else if (calibrationMode_) {
+                // 坐标变换标定模式的简洁提示
+                cv::putText(frame, "Click to add point", cv::Point(frame.cols - 180, 30),
+                          cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 200, 0), 2, cv::LINE_AA);
             }
             
             // 更新当前帧
@@ -732,4 +747,124 @@ bool VideoStreamer::isCameraCalibrated() const {
 
 size_t VideoStreamer::getCalibrationImageCount() const {
     return cameraCalibrator_.getImageCount();
+}
+
+bool VideoStreamer::startAutoCalibrationCapture(int durationSeconds, int intervalMs) {
+    // 如果已经在自动采集中，返回false
+    if (autoCapturing_) {
+        std::cerr << "Auto calibration capture already running" << std::endl;
+        return false;
+    }
+    
+    // 如果不在相机标定模式，返回false
+    if (!cameraCalibrationMode_) {
+        std::cerr << "Must be in camera calibration mode to start auto capture" << std::endl;
+        return false;
+    }
+    
+    // 设置自动采集标志
+    autoCapturing_ = true;
+    
+    // 启动自动采集线程
+    autoCapturingThread_ = std::thread(&VideoStreamer::autoCalibrationCaptureThread, this, durationSeconds, intervalMs);
+    autoCapturingThread_.detach();
+    
+    std::cout << "Started auto calibration capture for " << durationSeconds << " seconds with " 
+              << intervalMs << "ms interval" << std::endl;
+    
+    return true;
+}
+
+bool VideoStreamer::stopAutoCalibrationCapture() {
+    // 如果没有在自动采集中，返回false
+    if (!autoCapturing_) {
+        std::cerr << "Auto calibration capture not running" << std::endl;
+        return false;
+    }
+    
+    // 设置自动采集标志为false
+    autoCapturing_ = false;
+    
+    std::cout << "Stopped auto calibration capture" << std::endl;
+    
+    return true;
+}
+
+void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int intervalMs) {
+    // 计算结束时间
+    auto endTime = std::chrono::steady_clock::now() + std::chrono::seconds(durationSeconds);
+    int successCount = 0;
+    int attemptCount = 0;
+    
+    std::cout << "Auto calibration capture thread started" << std::endl;
+    
+    // 循环直到达到结束时间或停止标志被设置
+    while (autoCapturing_ && std::chrono::steady_clock::now() < endTime) {
+        // 获取当前帧
+        cv::Mat frame;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (!frame_.empty()) {
+                frame = frame_.clone();
+            }
+        }
+        
+        if (!frame.empty()) {
+            attemptCount++;
+            
+            // 尝试检测棋盘格并添加标定图像
+            std::vector<cv::Point2f> corners;
+            bool found = cameraCalibrator_.detectChessboard(frame, corners, false);
+            
+            if (found) {
+                // 如果检测成功，添加标定图像
+                if (cameraCalibrator_.addCalibrationImage(frame)) {
+                    successCount++;
+                    std::cout << "Auto capture: Successfully added calibration image " 
+                              << successCount << " (attempt " << attemptCount << ")" << std::endl;
+                    
+                    // 向所有WebSocket客户端发送更新的标定状态
+                    std::string status_message = std::string("{\"type\":\"camera_calibration_status\",")
+                                          + "\"calibration_mode\":"
+                                          + (cameraCalibrationMode_ ? "true" : "false") + ","
+                                          + "\"calibrated\":"
+                                          + (cameraCalibrator_.isCalibrated() ? "true" : "false") + ","
+                                          + "\"image_count\":"
+                                          + std::to_string(cameraCalibrator_.getImageCount()) + "}";
+                    
+                    std::lock_guard<std::mutex> lock(conn_mutex_);
+                    for (auto conn : connections_) {
+                        if (conn) {
+                            conn->send_text(status_message);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 等待指定的间隔时间
+        std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+    }
+    
+    // 设置自动采集标志为false
+    autoCapturing_ = false;
+    
+    std::cout << "Auto calibration capture thread finished. " 
+              << "Captured " << successCount << " images out of " << attemptCount << " attempts." << std::endl;
+    
+    // 向所有WebSocket客户端发送自动采集完成的消息
+    std::string completion_message = std::string("{\"type\":\"auto_capture_completed\",")
+                              + "\"success_count\":"
+                              + std::to_string(successCount) + ","
+                              + "\"attempt_count\":"
+                              + std::to_string(attemptCount) + ","
+                              + "\"image_count\":"
+                              + std::to_string(cameraCalibrator_.getImageCount()) + "}";
+    
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+    for (auto conn : connections_) {
+        if (conn) {
+            conn->send_text(completion_message);
+        }
+    }
 }

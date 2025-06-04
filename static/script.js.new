@@ -1,3 +1,4 @@
+console.log("This is script.js.new")
 class VideoStream {
     constructor() {
         // 基本元素

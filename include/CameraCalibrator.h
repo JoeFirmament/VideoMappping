@@ -13,6 +13,10 @@ public:
     void setChessboardSize(int width, int height);
     void setSquareSize(float size); // 实际方格大小（单位：米）
     
+    // 图像保存控制
+    void setSaveCalibrationImages(bool save) { saveCalibrationImages = save; }
+    bool getSaveCalibrationImages() const { return saveCalibrationImages; }
+    
     // 添加标定图像
     bool addCalibrationImage(const cv::Mat& image);
     
@@ -32,6 +36,13 @@ public:
     double getCalibrationError() const { return totalError; }
     bool isCalibrated() const { return calibrated; }
     size_t getImageCount() const { return imagePoints.size(); }
+    
+    // 获取棋盘格参数
+    cv::Size getBoardSize() const { return boardSize; }
+    float getSquareSize() const { return squareSize; }
+    
+    // 公共棋盘格检测方法，供前端和后端共用
+    bool detectChessboard(const cv::Mat& image, std::vector<cv::Point2f>& corners, bool isForCalibration = false);
 
 private:
     // 棋盘格参数
@@ -53,6 +64,9 @@ private:
     
     // 辅助函数
     void calculateObjectPoints();
+
+    // 图像保存控制
+    bool saveCalibrationImages;
 };
 
 #endif // CAMERA_CALIBRATOR_H

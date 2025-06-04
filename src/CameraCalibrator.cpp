@@ -1,13 +1,15 @@
 #include "CameraCalibrator.h"
 #include <opencv2/calib3d.hpp>
 #include <iostream>
+#include <ctime>  // 添加time.h头文件
 
 CameraCalibrator::CameraCalibrator() 
-    : boardSize(9, 6)  // 默认9x6的棋盘格
-    , squareSize(0.025f)  // 默认25mm
+    : boardSize(8, 5)  // 默认9x6的棋盘格，角点数是8x5
+    , squareSize(0.030f)  // 默认30mm
     , calibrated(false)
     , totalError(0.0)
     , imageSize(0, 0)  // 初始化为空尺寸
+    , saveCalibrationImages(false)  // 默认不保存图像
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
@@ -22,30 +24,130 @@ void CameraCalibrator::setSquareSize(float size) {
     squareSize = size;
 }
 
+// 公共棋盘格检测方法，供前端和后端共用
+bool CameraCalibrator::detectChessboard(const cv::Mat& image, std::vector<cv::Point2f>& corners, bool isForCalibration) {
+    // 准备灰度图像
+    cv::Mat grayImage;
+    if (image.channels() == 3) {
+        cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
+    } else {
+        grayImage = image.clone();
+    }
+    
+    // 保存调试图像（仅在标定模式下）
+    if (isForCalibration) {
+        std::string debugDir = "calibration_images/debug";
+        system("mkdir -p calibration_images/debug");
+        cv::imwrite(debugDir + "/gray_" + std::to_string(time(nullptr)) + ".jpg", grayImage);
+    }
+    
+    bool found = false;
+    
+    // 方法1: 使用前端使用的标准参数组合 - 这是最常用的组合
+    int flags = cv::CALIB_CB_ADAPTIVE_THRESH | 
+               cv::CALIB_CB_NORMALIZE_IMAGE |
+               cv::CALIB_CB_FILTER_QUADS |
+               cv::CALIB_CB_FAST_CHECK;
+    
+    found = cv::findChessboardCorners(grayImage, boardSize, corners, flags);
+    
+    if (isForCalibration) {
+        std::cout << "Standard detection method: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+    }
+    
+    // 如果是标定模式且标准方法失败，尝试更多方法
+    if (isForCalibration && !found) {
+        // 方法2: 图像预处理
+        cv::Mat enhancedImage;
+        cv::GaussianBlur(grayImage, enhancedImage, cv::Size(5, 5), 0);
+        cv::adaptiveThreshold(enhancedImage, enhancedImage, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 11, 2);
+        
+        // 保存预处理后的图像
+        std::string debugDir = "calibration_images/debug";
+        cv::imwrite(debugDir + "/enhanced_" + std::to_string(time(nullptr)) + ".jpg", enhancedImage);
+        
+        found = cv::findChessboardCorners(enhancedImage, boardSize, corners, flags);
+        std::cout << "Enhanced image method: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+        
+        // 方法3: 尝试反转棋盘格大小
+        if (!found) {
+            std::cout << "Trying with reversed board size..." << std::endl;
+            cv::Size reversedSize(boardSize.height, boardSize.width);
+            found = cv::findChessboardCorners(grayImage, reversedSize, corners, flags);
+            
+            std::cout << "Reversed size " << reversedSize.width << "x" << reversedSize.height << ": " 
+                      << (found ? "SUCCESS" : "FAILED") << std::endl;
+            
+            if (found) {
+                std::cout << "Found chessboard with reversed size: " << reversedSize.width << "x" << reversedSize.height << std::endl;
+                std::cout << "IMPORTANT: Please update your board size settings to " << reversedSize.width << "x" << reversedSize.height << std::endl;
+            }
+        }
+        
+        // 方法4: 尝试不同的棋盘格大小
+        if (!found) {
+            std::cout << "Trying different board sizes..." << std::endl;
+            std::vector<cv::Size> alternativeSizes = {
+                cv::Size(7, 4),  // 一行少一个角点
+                cv::Size(9, 6),  // 标准大小
+                cv::Size(4, 7),  // 反转的一行少一个角点
+                cv::Size(6, 9)   // 反转的标准大小
+            };
+            
+            for (const auto& size : alternativeSizes) {
+                if (size.width == boardSize.width && size.height == boardSize.height) {
+                    continue; // 跳过已经尝试过的大小
+                }
+                
+                std::cout << "Trying alternative size: " << size.width << "x" << size.height << std::endl;
+                found = cv::findChessboardCorners(grayImage, size, corners, flags);
+                
+                std::cout << "Alternative size " << size.width << "x" << size.height << ": " 
+                          << (found ? "SUCCESS" : "FAILED") << std::endl;
+                
+                if (found) {
+                    std::cout << "Found chessboard with alternative size: " << size.width << "x" << size.height << std::endl;
+                    std::cout << "IMPORTANT: Please update your board size settings to " << size.width << "x" << size.height << std::endl;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 如果找到了棋盘格，进行亚像素级角点检测
+    if (found) {
+        cv::cornerSubPix(grayImage, corners, cv::Size(11, 11), cv::Size(-1, -1),
+            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+    }
+    
+    return found;
+}
+
 bool CameraCalibrator::addCalibrationImage(const cv::Mat& image) {
     // 设置或验证图像尺寸
     if (imageSize.empty()) {
         imageSize = image.size();
+        std::cout << "First calibration image, setting size to: " << imageSize.width << "x" << imageSize.height << std::endl;
     } else if (imageSize != image.size()) {
         std::cerr << "Image size does not match previous images!" << std::endl;
         return false;
     }
     
+    std::cout << "Trying to find chessboard with size: " << boardSize.width << "x" << boardSize.height << std::endl;
+    std::cout << "Image size: " << image.cols << "x" << image.rows << ", channels: " << image.channels() << std::endl;
+    
+    // 保存原始图像用于调试
+    std::string debugDir = "calibration_images/debug";
+    system("mkdir -p calibration_images/debug");
+    cv::imwrite(debugDir + "/original_" + std::to_string(time(nullptr)) + ".jpg", image);
+    
     std::vector<cv::Point2f> corners;
-    bool found = cv::findChessboardCorners(image, boardSize, corners,
-        cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+    
+    // 使用公共检测方法
+    bool found = detectChessboard(image, corners, true);
     
     if (found) {
-        cv::Mat grayImage;
-        if (image.channels() == 3) {
-            cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
-        } else {
-            grayImage = image.clone();
-        }
-        
-        // 亚像素级角点检测
-        cv::cornerSubPix(grayImage, corners, cv::Size(11, 11), cv::Size(-1, -1),
-            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+        std::cout << "Chessboard found with " << corners.size() << " corners!" << std::endl;
             
         imagePoints.push_back(corners);
         
@@ -57,7 +159,70 @@ bool CameraCalibrator::addCalibrationImage(const cv::Mat& image) {
             objectPoints.resize(imagePoints.size(), objectPoints[0]);
         }
         
+        std::cout << "Total calibration images: " << imagePoints.size() << std::endl;
+        
+        // 可选：保存标定图像（用于调试或记录）
+        if (saveCalibrationImages) {
+            std::cout << "Saving calibration image (saveCalibrationImages=" << (saveCalibrationImages ? "true" : "false") << ")" << std::endl;
+            
+            // 确保目录存在
+            std::string dirCmd = "mkdir -p calibration_images";
+            int dirResult = system(dirCmd.c_str());
+            std::cout << "Directory creation result: " << dirResult << std::endl;
+            
+            std::string filename = "calibration_images/calib_" + 
+                                 std::to_string(imagePoints.size()) + ".jpg";
+            
+            // 在图像上绘制检测到的角点
+            cv::Mat imageWithCorners = image.clone();
+            cv::drawChessboardCorners(imageWithCorners, boardSize, corners, found);
+            
+            // 检查目录权限
+            system("ls -la calibration_images/");
+            
+            // 保存图像
+            std::cout << "Trying to save image to: " << filename << std::endl;
+            bool writeSuccess = cv::imwrite(filename, imageWithCorners);
+            if (writeSuccess) {
+                std::cout << "Successfully saved calibration image: " << filename << std::endl;
+            } else {
+                std::cerr << "Failed to save calibration image: " << filename << std::endl;
+                // 尝试使用绝对路径
+                std::string absFilename = "/home/radxa/Qworkspace/VideoMapping/calibration_images/calib_" + 
+                                       std::to_string(imagePoints.size()) + ".jpg";
+                std::cout << "Trying with absolute path: " << absFilename << std::endl;
+                writeSuccess = cv::imwrite(absFilename, imageWithCorners);
+                if (writeSuccess) {
+                    std::cout << "Successfully saved with absolute path!" << std::endl;
+                } else {
+                    std::cerr << "Still failed with absolute path." << std::endl;
+                    
+                    // 尝试保存原始图像，看看是否是角点绘制的问题
+                    std::string rawFilename = "/home/radxa/Qworkspace/VideoMapping/calibration_images/raw_" + 
+                                           std::to_string(imagePoints.size()) + ".jpg";
+                    bool rawSuccess = cv::imwrite(rawFilename, image);
+                    std::cout << "Saving raw image: " << (rawSuccess ? "success" : "failed") << std::endl;
+                }
+            }
+        } else {
+            std::cout << "Not saving calibration image (saveCalibrationImages=false)" << std::endl;
+        }
+        
         return true;
+    } else {
+        std::cout << "No chessboard found in this image after trying all methods." << std::endl;
+        std::cout << "Troubleshooting tips:" << std::endl;
+        std::cout << "1. Ensure the chessboard is fully visible in the image" << std::endl;
+        std::cout << "2. Check lighting conditions - avoid glare and shadows" << std::endl;
+        std::cout << "3. Verify the chessboard size settings match your actual board" << std::endl;
+        std::cout << "4. Try holding the board at different angles" << std::endl;
+        std::cout << "5. Check if the board is flat and not bent" << std::endl;
+        
+        // 保存失败的图像以便调试
+        std::string failedFilename = "/home/radxa/Qworkspace/VideoMapping/calibration_images/failed_" + 
+                                  std::to_string(time(nullptr)) + ".jpg";
+        cv::imwrite(failedFilename, image);
+        std::cout << "Saved failed detection image to: " << failedFilename << std::endl;
     }
     return false;
 }

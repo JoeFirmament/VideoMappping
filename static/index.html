@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频流标定系统</title>
+    <title>边缘计算标定测试系统</title>
     
     <!-- 防缓存的meta标签 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -15,141 +15,241 @@
 <body>
     <div class="app-container">
         <div class="page-header">
-            <h1 class="page-title">视频流标定系统</h1>
-            <p class="page-subtitle">实时视频流采集与坐标转换</p>
+            <div class="language-switcher">
+                <select id="languageSelect" class="language-select">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            <h1 class="page-title" data-i18n="title">边缘计算标定测试系统</h1>
+            <p class="page-subtitle" data-i18n="subtitle">Edge Computing Calibration Test System</p>
         </div>
         
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">视频监控</h2>
-                <div id="status" class="status-panel">状态: 正在连接服务器...</div>
+                <h2 class="card-title" data-i18n="video_monitoring">视频监控</h2>
+                <div id="status" class="status-panel" data-i18n="status_connecting">状态: 正在连接服务器...</div>
             </div>
             
             <div class="grid grid-2">
                 <div>
                     <div class="video-container">
-                        <img id="video" class="video-canvas" src="" alt="视频流">
+                        <img id="video" class="video-canvas" src="" data-i18n-alt="video_stream">
                     </div>
                     
                     <div class="stats">
                         <div class="stat">
-                            <span class="stat-label">FPS</span>
+                            <span class="stat-label" data-i18n="fps">FPS</span>
                             <span id="fps" class="stat-value">0</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-label">分辨率</span>
+                            <span class="stat-label" data-i18n="resolution">分辨率</span>
                             <span id="resolution" class="stat-value">-</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-label">帧间隔</span>
+                            <span class="stat-label" data-i18n="latency">帧间隔</span>
                             <span id="latency" class="stat-value">-</span>
                         </div>
                     </div>
                     
                     <div class="controls mb-3">
-                        <button id="startBtn" class="btn btn-primary" disabled>开始</button>
-                        <button id="stopBtn" class="btn btn-danger" disabled>停止</button>
-                        <button id="fullscreenBtn" class="btn btn-secondary">全屏</button>
+                        <button id="startBtn" class="btn btn-primary" disabled>
+                            <span data-i18n="start">开始</span>
+                        </button>
+                        <button id="stopBtn" class="btn btn-danger" disabled>
+                            <span data-i18n="stop">停止</span>
+                        </button>
+                        <button id="fullscreenBtn" class="btn btn-secondary">
+                            <span data-i18n="fullscreen">全屏</span>
+                        </button>
                     </div>
                 </div>
                 
                 <div class="control-panel">
                     <div class="control-section">
-                        <h3 class="mb-2">摄像头设置</h3>
+                        <h3 class="mb-2" data-i18n="camera_settings">摄像头设置</h3>
                         <div class="form-group mb-2">
-                            <label class="form-label">分辨率选择</label>
+                            <label class="form-label" data-i18n="resolution_select">分辨率选择</label>
                             <select id="resolutionSelect" class="form-select">
                                 <option value="640,480">640 × 480</option>
                             </select>
                         </div>
                     </div>
                     
+                    <hr class="section-divider">
+                    
                     <div class="control-section">
-                        <h3 class="mb-2">相机标定</h3>
-                        <div class="control-row">
-                            <button id="toggleCameraCalibrationBtn" class="btn btn-primary">相机标定模式</button>
-                            <button id="addCalibrationImageBtn" class="btn btn-success" disabled>采集标定图像</button>
+                        <h3 class="mb-2" data-i18n="camera_intrinsic_calibration">相机内参标定</h3>
+                        <p class="section-description" data-i18n="camera_calibration_desc">用于消除镜头畸变，提高测量精度</p>
+                        
+                        <!-- 棋盘格参数设置 -->
+                        <div class="parameter-group mb-3">
+                            <h4 data-i18n="chessboard_parameters">棋盘格参数</h4>
+                            <div class="control-row mt-2">
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="corner_width">内角点宽度</label>
+                                    <input type="number" id="boardWidthInput" placeholder="8" value="8" class="form-control" />
+                                    <small class="form-hint" data-i18n="corner_width_hint">棋盘格内部角点数量（水平方向）</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="corner_height">内角点高度</label>
+                                    <input type="number" id="boardHeightInput" placeholder="5" value="5" class="form-control" />
+                                    <small class="form-hint" data-i18n="corner_height_hint">棋盘格内部角点数量（垂直方向）</small>
+                                </div>
+                            </div>
+                            <div class="control-row mt-2">
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="square_size">方格大小 (mm)</label>
+                                    <input type="number" id="squareSizeInput" placeholder="30" value="30" class="form-control" />
+                                    <small class="form-hint" data-i18n="square_size_hint">实际测量的方格边长，单位毫米</small>
+                                </div>
+                                <button id="setBoardSizeBtn" class="btn btn-secondary">
+                                    <span data-i18n="set_parameters">设置参数</span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="control-row mt-2">
-                            <button id="performCameraCalibrationBtn" class="btn btn-success" disabled>执行标定</button>
-                            <button id="saveCameraCalibrationBtn" class="btn btn-secondary" disabled>保存标定结果</button>
+                        
+                        <!-- 标定操作按钮 -->
+                        <div class="operation-group mb-3">
+                            <div class="control-row">
+                                <button id="toggleCameraCalibrationBtn" class="btn btn-primary">
+                                    <span data-i18n="camera_calibration_mode">相机标定模式</span>
+                                </button>
+                                <button id="addCalibrationImageBtn" class="btn btn-success" disabled>
+                                    <span data-i18n="capture_image">采集标定图像</span>
+                                </button>
+                            </div>
+                            
+                            <!-- 自动采集设置 -->
+                            <div class="control-row mt-2">
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="auto_capture_time">自动采集时间(秒)</label>
+                                    <input type="number" id="autoCaptureTimeInput" placeholder="10" value="10" class="form-control" min="1" max="60" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="auto_capture_interval">采集间隔(毫秒)</label>
+                                    <input type="number" id="autoCaptureIntervalInput" placeholder="500" value="500" class="form-control" min="100" max="2000" />
+                                </div>
+                            </div>
+                            <div class="control-row mt-2">
+                                <button id="startAutoCalibrationBtn" class="btn btn-success" disabled>
+                                    <span data-i18n="start_auto_capture">开始自动采集</span>
+                                </button>
+                                <button id="stopAutoCalibrationBtn" class="btn btn-danger" disabled>
+                                    <span data-i18n="stop_auto_capture">停止自动采集</span>
+                                </button>
+                            </div>
+                            
+                            <div class="control-row mt-2">
+                                <button id="performCameraCalibrationBtn" class="btn btn-success" disabled>
+                                    <span data-i18n="perform_calibration">执行标定</span>
+                                </button>
+                                <button id="saveCameraCalibrationBtn" class="btn btn-secondary" disabled>
+                                    <span data-i18n="save_calibration">保存标定结果</span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="control-row mt-2">
-                            <input type="number" id="boardWidthInput" placeholder="棋盘格宽度" value="9" class="form-control" />
-                            <input type="number" id="boardHeightInput" placeholder="棋盘格高度" value="6" class="form-control" />
-                        </div>
-                        <div class="control-row mt-2">
-                            <input type="number" id="squareSizeInput" placeholder="方格大小(mm)" value="25" class="form-control" />
-                            <button id="setBoardSizeBtn" class="btn btn-secondary">设置棋盘格参数</button>
-                        </div>
-                        <div class="mt-2">
+                        
+                        <!-- 标定状态信息 -->
+                        <div class="status-group">
                             <div class="info-item">
-                                <span class="info-label">重投影误差:</span>
+                                <span class="info-label" data-i18n="saved_images_count">已保存标定图片:</span>
+                                <span id="savedImagesCount" class="info-value">0 张</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="reprojection_error">重投影误差:</span>
                                 <span id="calibrationErrorDisplay" class="info-value">-</span>
                             </div>
                         </div>
                     </div>
                     
+                    <hr class="section-divider">
+                    
                     <div class="control-section">
-                        <h3 class="mb-2">标定操作</h3>
+                        <h3 class="mb-2" data-i18n="coordinate_transform_calibration">坐标变换标定</h3>
+                        <p class="section-description" data-i18n="coordinate_calibration_desc">用于图像坐标与实际地面坐标的转换</p>
                         <div class="control-row">
-                            <button id="toggleCalibrationBtn" class="btn btn-primary">进入标定模式</button>
-                            <button id="computeHomographyBtn" class="btn btn-success" disabled>计算单应性矩阵</button>
+                            <button id="toggleCalibrationBtn" class="btn btn-primary">
+                                <span data-i18n="enter_calibration_mode">进入标定模式</span>
+                            </button>
+                            <button id="computeHomographyBtn" class="btn btn-success" disabled>
+                                <span data-i18n="compute_homography">计算单应性矩阵</span>
+                            </button>
                         </div>
                     </div>
                     
+                    <hr class="section-divider">
+                    
                     <div class="control-section">
-                        <h3 class="mb-2">ArUco 标记检测</h3>
+                        <h3 class="mb-2" data-i18n="aruco_marker_detection">ArUco 标记检测</h3>
                         <div class="control-row">
-                            <button id="toggleArUcoBtn" class="btn btn-primary">启用 ArUco 模式</button>
-                            <button id="calibrateFromArUcoBtn" class="btn btn-success" disabled>从 ArUco 标记标定</button>
+                            <button id="toggleArUcoBtn" class="btn btn-primary">
+                                <span data-i18n="enable_aruco_mode">启用 ArUco 模式</span>
+                            </button>
+                            <button id="calibrateFromArUcoBtn" class="btn btn-success" disabled>
+                                <span data-i18n="calibrate_from_aruco">从 ArUco 标记标定</span>
+                            </button>
                         </div>
                         <div class="control-row mt-2">
-                            <button id="saveMarkerCoordsBtn" class="btn btn-secondary" disabled>保存标记坐标</button>
-                            <button id="loadMarkerCoordsBtn" class="btn btn-secondary">加载标记坐标</button>
+                            <button id="saveMarkerCoordsBtn" class="btn btn-secondary" disabled>
+                                <span data-i18n="save_marker_coords">保存标记坐标</span>
+                            </button>
+                            <button id="loadMarkerCoordsBtn" class="btn btn-secondary">
+                                <span data-i18n="load_marker_coords">加载标记坐标</span>
+                            </button>
                         </div>
                     </div>
                     
+                    <hr class="section-divider">
+                    
                     <div class="control-section">
-                        <h3 class="mb-2">坐标系设置</h3>
+                        <h3 class="mb-2" data-i18n="coordinate_system">坐标系设置</h3>
                         <div class="control-row">
-                            <button id="setOriginBtn" class="btn btn-primary">设置原点</button>
-                            <button id="toggleCoordTypeBtn" class="btn btn-secondary">切换坐标类型</button>
+                            <button id="setOriginBtn" class="btn btn-primary">
+                                <span data-i18n="set_origin">设置原点</span>
+                            </button>
+                            <button id="toggleCoordTypeBtn" class="btn btn-secondary">
+                                <span data-i18n="toggle_coord_type">切换坐标类型</span>
+                            </button>
                         </div>
                         <div class="coordinate-system-info mt-2">
                             <div class="info-item">
-                                <span class="info-label">坐标类型:</span>
+                                <span class="info-label" data-i18n="coord_type">坐标类型:</span>
                                 <span id="coordTypeDisplay" class="info-value">直角坐标</span>
                             </div>
                             <div class="info-item">
-                                <span class="info-label">原点位置:</span>
+                                <span class="info-label" data-i18n="origin_position">原点位置:</span>
                                 <span id="originDisplay" class="info-value">(0, 0)</span>
                             </div>
                         </div>
                     </div>
                     
+                    <hr class="section-divider">
+                    
                     <div class="control-section">
-                        <h3 class="mb-2">调试信息</h3>
+                        <h3 class="mb-2" data-i18n="debug_information">调试信息</h3>
                         <div class="debug-panel">
                             <div class="debug-toggle">
                                 <label class="switch">
                                     <input type="checkbox" id="debugToggle">
                                     <span class="slider round"></span>
                                 </label>
-                                <span>显示调试信息</span>
+                                <span data-i18n="show_debug_info">显示调试信息</span>
                             </div>
                             <div id="debugInfo" class="debug-info" style="display: none;">
                                 <div class="info-item">
-                                    <span class="info-label">单应性矩阵:</span>
+                                    <span class="info-label" data-i18n="homography_matrix">单应性矩阵:</span>
                                     <pre id="homographyMatrix" class="info-value matrix">-</pre>
-                                    <button id="exportMatrixBtn" class="btn btn-sm btn-secondary">导出矩阵</button>
+                                    <button id="exportMatrixBtn" class="btn btn-sm btn-secondary">
+                                        <span data-i18n="export_matrix">导出矩阵</span>
+                                    </button>
                                 </div>
                                 <div class="info-item">
-                                    <span class="info-label">检测到的标记:</span>
+                                    <span class="info-label" data-i18n="detected_markers">检测到的标记:</span>
                                     <span id="detectedMarkersCount" class="info-value">0</span>
                                 </div>
                                 <div class="info-item">
-                                    <span class="info-label">最近操作:</span>
+                                    <span class="info-label" data-i18n="last_operation">最近操作:</span>
                                     <span id="lastOperation" class="info-value">-</span>
                                 </div>
                             </div>
@@ -241,11 +341,14 @@
     </div>
 
     <script>
-        // 动态加载JS文件，确保不被缓存
-        const timestamp = new Date().getTime();
-        const script = document.createElement('script');
-        script.src = `script.js?t=${timestamp}`;
-        document.head.appendChild(script);
+        // 添加一些基础的调试输出
+        console.log('HTML script block loaded, timestamp:', new Date().toISOString());
+        console.log('Document ready state:', document.readyState);
     </script>
+    
+    <!-- 首先加载多语言支持 -->
+    <script src="i18n.js"></script>
+    <!-- 然后加载主程序 -->
+    <script src="script.js"></script>
 </body>
 </html>

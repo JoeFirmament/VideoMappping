@@ -64,6 +64,11 @@ public:
     bool isCameraCalibrated() const;
     size_t getCalibrationImageCount() const; // 新增方法
 
+    // 自动采集标定图像
+    bool startAutoCalibrationCapture(int durationSeconds = 10, int intervalMs = 500);
+    bool stopAutoCalibrationCapture();
+    bool isAutoCapturing() const { return autoCapturing_; }
+
 private:
     void captureThread(); // 添加线程函数声明
     void sendCameraInfo(Connection conn); // 发送摄像头信息给客户端
@@ -92,4 +97,8 @@ private:
     CameraCalibrator cameraCalibrator_; // 相机标定器
     bool cameraCalibrationMode_{false}; // 相机标定模式标志
     std::string cameraCalibrationFilePath_{"/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml"}; // 相机标定文件路径
+
+    // 自动采集标定图像相关
+    std::atomic<bool> autoCapturing_{false};
+    std::thread autoCapturingThread_;
 };

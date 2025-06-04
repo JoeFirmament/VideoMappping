@@ -1,6 +1,11 @@
+console.log('Script.js loaded!');
+console.log('Document readyState:', document.readyState);
+
 class VideoStream {
     constructor() {
-        // 基本元素
+        console.log('VideoStream constructor called');
+        
+        // Basic elements
         this.video = document.getElementById('video');
         this.statusElement = document.getElementById('status');
         this.fpsElement = document.getElementById('fps');
@@ -10,7 +15,7 @@ class VideoStream {
         this.stopBtn = document.getElementById('stopBtn');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
         
-        // 调试相关元素
+        // Debug related elements
         this.debugToggle = document.getElementById('debugToggle');
         this.debugInfo = document.getElementById('debugInfo');
         this.homographyMatrix = document.getElementById('homographyMatrix');
@@ -18,7 +23,7 @@ class VideoStream {
         this.detectedMarkersCount = document.getElementById('detectedMarkersCount');
         this.exportMatrixBtn = document.getElementById('exportMatrixBtn');
         
-        // 相机标定相关元素
+        // Camera calibration related elements
         this.toggleCameraCalibrationBtn = document.getElementById('toggleCameraCalibrationBtn');
         this.addCalibrationImageBtn = document.getElementById('addCalibrationImageBtn');
         this.performCameraCalibrationBtn = document.getElementById('performCameraCalibrationBtn');
@@ -28,8 +33,15 @@ class VideoStream {
         this.squareSizeInput = document.getElementById('squareSizeInput');
         this.setBoardSizeBtn = document.getElementById('setBoardSizeBtn');
         this.calibrationErrorDisplay = document.getElementById('calibrationErrorDisplay');
+        this.savedImagesCount = document.getElementById('savedImagesCount');
         
-        // 初始化变量
+        // Automatic capture related elements
+        this.autoCaptureTimeInput = document.getElementById('autoCaptureTimeInput');
+        this.autoCaptureIntervalInput = document.getElementById('autoCaptureIntervalInput');
+        this.startAutoCalibrationBtn = document.getElementById('startAutoCalibrationBtn');
+        this.stopAutoCalibrationBtn = document.getElementById('stopAutoCalibrationBtn');
+        
+        // Initialize variables
         this.ws = null;
         this.connected = false;
         this.frameCount = 0;
@@ -45,52 +57,52 @@ class VideoStream {
         this.markerCoordinates = {};
         this.rawHomographyMatrix = null;
         
-        // 相机标定相关状态
+        // Camera calibration related status
         this.cameraCalibrationMode = false;
         this.cameraCalibrated = false;
         this.calibrationImages = 0;
         
-        // 媒体显示相关
+        // Media display related
         this.currentBlobUrl = null;
         
-        // 初始化
+        // Initialize
         this.initialize();
     }
     
     initialize() {
-        // 绑定方法到当前实例
+        // Bind methods to current instance
         this.toggleCameraCalibrationMode = this.toggleCameraCalibrationMode.bind(this);
         
         this.setupEventListeners();
         this.connect();
         
-        // 启动FPS计数器
+        // Start FPS counter
         setInterval(() => this.updateFps(), 1000);
     }
     
     setupEventListeners() {
-        // 开始按钮
+        // Start button
         if (this.startBtn) {
             this.startBtn.addEventListener('click', () => {
                 this.start();
             });
         }
         
-        // 停止按钮
+        // Stop button
         if (this.stopBtn) {
             this.stopBtn.addEventListener('click', () => {
                 this.stop();
             });
         }
         
-        // 全屏按钮
+        // Fullscreen button
         if (this.fullscreenBtn) {
             this.fullscreenBtn.addEventListener('click', () => {
                 this.toggleFullscreen();
             });
         }
         
-        // 调试信息开关
+        // Debug information switch
         if (this.debugToggle) {
             this.debugToggle.addEventListener('change', () => {
                 if (this.debugInfo) {
@@ -99,14 +111,14 @@ class VideoStream {
             });
         }
         
-        // 导出矩阵按钮
+        // Export matrix button
         if (this.exportMatrixBtn) {
             this.exportMatrixBtn.addEventListener('click', () => {
                 this.exportHomographyMatrix();
             });
         }
         
-        // 相机标定相关事件监听
+        // Camera calibration related event listeners
         if (this.toggleCameraCalibrationBtn) {
             this.toggleCameraCalibrationBtn.addEventListener('click', () => {
                 this.toggleCameraCalibrationMode();
@@ -139,54 +151,70 @@ class VideoStream {
     }
     
     connect() {
-        // 创建WebSocket连接
+        // Create WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        console.log('Attempting to connect WebSocket:', wsUrl);
+        console.log('Current location:', window.location);
+        
+        this.updateStatus('connecting', 'Connecting WebSocket...');
         
         this.ws = new WebSocket(wsUrl);
         
         this.ws.onopen = () => {
-            console.log('WebSocket连接已建立');
+            console.log('WebSocket connection established');
             this.connected = true;
-            this.updateStatus('connected', '已连接');
+            this.updateStatus('connected', window.i18n ? window.i18n.t('connected') : 'Connected');
             this.startBtn.disabled = false;
             this.stopBtn.disabled = true;
         };
         
         this.ws.onclose = (event) => {
-            console.log('WebSocket连接已关闭:', event);
+            console.log('WebSocket connection closed:', event);
+            console.log('Close code:', event.code, 'Reason:', event.reason);
             this.connected = false;
-            this.updateStatus('error', '连接已断开');
+            this.updateStatus('error', window.i18n ? window.i18n.t('disconnected') : 'Connection disconnected');
             this.startBtn.disabled = true;
             this.stopBtn.disabled = true;
             
-            // 5秒后尝试重新连接
-            setTimeout(() => this.connect(), 5000);
+            // Try to reconnect after 5 seconds
+            setTimeout(() => {
+                console.log('Trying to reconnect...');
+                this.connect();
+            }, 5000);
         };
         
         this.ws.onerror = (error) => {
-            console.error('WebSocket错误:', error);
-            this.updateStatus('error', 'WebSocket错误');
+            console.error('WebSocket error:', error);
+            this.updateStatus('error', window.i18n ? window.i18n.t('websocket_error') : 'WebSocket connection error');
         };
         
         this.ws.onmessage = (event) => {
             try {
-                // 如果消息是二进制数据（图像帧）
+                console.log('WebSocket message received, type:', typeof event.data, 'instanceof Blob:', event.data instanceof Blob);
+                
+                // If message is binary data (image frame)
                 if (event.data instanceof Blob) {
+                    console.log('Processing binary frame data');
                     this.displayImageFrame(event.data);
-                } else {
-                    // 解析JSON消息
+                } else if (typeof event.data === 'string') {
+                    // Parse JSON message
+                    console.log('Processing text message:', event.data);
                     const message = JSON.parse(event.data);
-                    console.log('Received message:', message);
                     
                     if (message.type === 'camera_calibration_status') {
                         this.handleCameraCalibrationStatus(message);
                     } else if (message.type === 'frame_info') {
                         this.handleFrameInfo(message);
+                    } else {
+                        this.handleTextMessage(event.data);
                     }
+                } else {
+                    console.log('Unknown message type:', typeof event.data);
                 }
             } catch (e) {
-                console.error('处理消息时出错:', e);
+                console.error('Error processing message:', e);
             }
         };
     }
@@ -200,7 +228,18 @@ class VideoStream {
         if (message.image_count !== undefined) {
             this.calibrationImages = message.image_count;
             if (this.lastOperation) {
-                this.lastOperation.textContent = `当前已采集 ${this.calibrationImages} 幅标定图像`;
+                const text = window.i18n ? 
+                    `${window.i18n.t('current_image_count')}: ${this.calibrationImages}` : 
+                    `Current image count: ${this.calibrationImages}`;
+                this.lastOperation.textContent = text;
+            }
+            
+            // 更新保存的图片计数显示
+            if (this.savedImagesCount) {
+                const countText = window.i18n && window.i18n.getCurrentLanguage() === 'zh' ? 
+                    `${this.calibrationImages} 张` : 
+                    `${this.calibrationImages} images`;
+                this.savedImagesCount.textContent = countText;
             }
         }
         
@@ -208,43 +247,66 @@ class VideoStream {
             this.calibrationErrorDisplay.textContent = message.error.toFixed(2) + ' 像素';
         }
         
-        this.updateCameraCalibrationUI();
+        // 使用新的UI更新方法
+        this.updateCameraCalibrationUIWithStates();
         
-        // 显示相应的状态消息
+        // 停止处理状态
+        this.setButtonState(this.toggleCameraCalibrationBtn, this.cameraCalibrationMode ? 'active' : '');
+        this.setButtonState(this.performCameraCalibrationBtn, '');
+        
+        // Display corresponding status message
         if (message.success !== undefined) {
             this.updateStatus(message.success ? 'success' : 'error', 
-                            message.success ? '操作成功' : '操作失败');
+                            message.success ? 'Operation successful' : 'Operation failed');
         }
     }
     
     handleTextMessage(message) {
         try {
             const data = JSON.parse(message);
-            console.log('收到消息:', data);
+            console.log('Received message:', data);
             
             if (data.type === 'status') {
                 this.updateStatus(data.status, data.message);
             } else if (data.type === 'error') {
-                console.error('服务器错误:', data.message);
-                this.updateStatus('error', `错误: ${data.message}`);
-                this.updateLastOperation(`错误: ${data.message}`);
+                console.error('Server error:', data.message);
+                this.updateStatus('error', `Error: ${data.message}`);
+                this.updateLastOperation(`Error: ${data.message}`);
             } else if (data.type === 'frame_info') {
-                // 更新分辨率信息
-                console.log(`收到帧信息: ${data.width}x${data.height}`);
+                // Update resolution display
                 if (this.resolutionElement) {
                     this.resolutionElement.textContent = `${data.width}×${data.height}`;
                 }
+            } else if (data.type === 'camera_info') {
+                // 处理相机信息，包括棋盘格参数
+                console.log('Received camera info:', data);
+                
+                // 更新棋盘格参数输入框
+                if (data.board_width && this.boardWidthInput) {
+                    this.boardWidthInput.value = data.board_width;
+                }
+                if (data.board_height && this.boardHeightInput) {
+                    this.boardHeightInput.value = data.board_height;
+                }
+                if (data.square_size && this.squareSizeInput) {
+                    this.squareSizeInput.value = data.square_size;
+                }
+                
+                // 更新分辨率信息
+                if (this.resolutionElement && data.current_width && data.current_height) {
+                    this.resolutionElement.textContent = `${data.current_width}×${data.current_height}`;
+                }
             } else if (data.type === 'calibration_result') {
-                // 处理标定结果
-                console.log('收到标定结果:', data);
+                // Process calibration result
+                console.log('Received calibration result:', data);
                 
                 if (data.success) {
                     this.calibrated = true;
                     
-                    // 更新单应性矩阵显示
+                    // Update homography matrix display
                     if (data.homography_matrix) {
                         this.updateHomographyMatrix(data.homography_matrix);
-                        this.updateLastOperation('标定成功，单应性矩阵已更新');
+                        this.updateLastOperation('Calibration successful, homography matrix updated');
                     }
                 }
             } else if (data.type === 'camera_calibration_status') {
@@ -254,21 +316,82 @@ class VideoStream {
                 this.updateCameraCalibrationUI();
                 
                 if (data.error !== undefined) {
-                    this.calibrationErrorDisplay.textContent = data.error.toFixed(2) + ' 像素';
+                    this.calibrationErrorDisplay.textContent = data.error.toFixed(2) + ' pixels';
                 }
+                
+                // 如果包含棋盘格参数，更新输入框
+                if (data.width && this.boardWidthInput) {
+                    this.boardWidthInput.value = data.width;
+                }
+                if (data.height && this.boardHeightInput) {
+                    this.boardHeightInput.value = data.height;
+                }
+                if (data.square_size && this.squareSizeInput) {
+                    // 转换为毫米显示
+                    this.squareSizeInput.value = Math.round(data.square_size * 1000);
+                }
+            } else if (data.type === 'auto_capture_status') {
+                // 处理自动采集状态消息
+                console.log('Received auto capture status:', data);
+                
+                if (data.started !== undefined) {
+                    if (data.started) {
+                        this.updateStatus('success', window.i18n ? 
+                            window.i18n.t('auto_capture_started', {duration: data.duration, interval: data.interval}) : 
+                            `Auto capture started for ${data.duration}s with ${data.interval}ms interval`);
+                        
+                        // 设置自动采集按钮状态
+                        this.setButtonState(this.startAutoCalibrationBtn, 'processing');
+                        this.stopAutoCalibrationBtn.disabled = false;
+                    } else {
+                        this.updateStatus('error', window.i18n ? 
+                            window.i18n.t('auto_capture_failed') : 
+                            'Failed to start auto capture');
+                    }
+                }
+                
+                if (data.stopped !== undefined) {
+                    if (data.stopped) {
+                        this.updateStatus('success', window.i18n ? 
+                            window.i18n.t('auto_capture_stopped') : 
+                            'Auto capture stopped');
+                        
+                        // 恢复按钮状态
+                        this.setButtonState(this.startAutoCalibrationBtn, '');
+                        this.stopAutoCalibrationBtn.disabled = true;
+                    }
+                }
+            } else if (data.type === 'auto_capture_completed') {
+                // 处理自动采集完成消息
+                console.log('Auto capture completed:', data);
+                
+                this.updateStatus('success', window.i18n ? 
+                    window.i18n.t('auto_capture_completed', {
+                        success: data.success_count, 
+                        total: data.attempt_count
+                    }) : 
+                    `Auto capture completed: ${data.success_count} successful out of ${data.attempt_count} attempts`);
+                
+                // 更新标定图像计数
+                this.calibrationImages = data.image_count;
+                this.updateCameraCalibrationUI();
+                
+                // 恢复按钮状态
+                this.setButtonState(this.startAutoCalibrationBtn, '');
+                this.stopAutoCalibrationBtn.disabled = true;
             }
         } catch (error) {
-            console.error('处理文本消息时出错:', error);
+            console.error('Error processing text message:', error);
         }
     }
     
     handleBinaryMessage(data) {
         try {
-            // 处理二进制消息（视频帧）
+            // Process binary message (video frame)
             const blob = new Blob([data], { type: 'image/jpeg' });
             this.displayImageFrame(blob);
         } catch (error) {
-            console.error('处理二进制消息时出错:', error);
+            console.error('Error processing binary message:', error);
         }
     }
     
@@ -280,12 +403,12 @@ class VideoStream {
     }
     
     updateFps() {
-        // 计算FPS
+        // Calculate FPS
         const fps = this.frameCount - this.lastFrameCount;
         this.lastFrameCount = this.frameCount;
         this.fps = fps;
         
-        // 更新FPS显示
+        // Update FPS display
         if (this.fpsElement) {
             this.fpsElement.textContent = `${this.fps} FPS`;
         }
@@ -310,7 +433,7 @@ class VideoStream {
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             this.video.requestFullscreen().catch(err => {
-                console.error(`无法进入全屏模式: ${err.message}`);
+                console.error(`Unable to enter full screen mode: ${err.message}`);
             });
         } else {
             document.exitFullscreen();
@@ -318,44 +441,47 @@ class VideoStream {
     }
     
     toggleCalibrationMode() {
-        console.log('切换标定模式');
+        console.log('Switching calibration mode');
         
-        // 切换标定模式状态
+        // Switch calibration mode status
         this.calibrationMode = !this.calibrationMode;
         
-        // 更新UI
+        // Update UI
         if (this.toggleCalibrationBtn) {
-            this.toggleCalibrationBtn.textContent = this.calibrationMode ? '退出标定模式' : '进入标定模式';
+            this.toggleCalibrationBtn.textContent = this.calibrationMode ? 'Exit calibration mode' : 'Enter calibration mode';
         }
         
-        // 显示/隐藏标定面板
+        // Show/hide calibration panel
         if (this.calibrationPanel) {
             this.calibrationPanel.style.display = this.calibrationMode ? 'block' : 'none';
         }
         
-        // 显示/隐藏坐标测试面板
+        // Show/hide coordinate test panel
         if (this.coordinateTestPanel) {
             this.coordinateTestPanel.style.display = this.calibrated && !this.calibrationMode ? 'block' : 'none';
         }
         
-        // 发送切换标定模式命令到服务器
+        // Send switch calibration mode command to server
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({
                 action: 'toggle_calibration_mode'
             }));
         }
         
-        // 更新状态
+        // Update status
         this.updateStatus(this.calibrationMode ? 'info' : 'success', 
-                         this.calibrationMode ? '已进入标定模式' : '已退出标定模式');
+                         this.calibrationMode ? 'Entered calibration mode' : 'Exited calibration mode');
     }
     
     toggleCameraCalibrationMode() {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket未连接');
-            this.updateStatus('error', 'WebSocket未连接');
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
             return;
         }
+        
+        // 设置处理状态
+        this.setButtonState(this.toggleCameraCalibrationBtn, 'processing');
         
         const message = {
             action: 'toggle_camera_calibration_mode'
@@ -364,18 +490,21 @@ class VideoStream {
         console.log('Sending message:', message);
         this.ws.send(JSON.stringify(message));
         
-        // 更新最后操作信息
+        // Update last operation information
         if (this.lastOperation) {
-            this.lastOperation.textContent = '切换相机标定模式';
+            this.lastOperation.textContent = 'Switching camera calibration mode';
         }
     }
     
     addCalibrationImage() {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket未连接');
-            this.updateStatus('error', 'WebSocket未连接');
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
             return;
         }
+        
+        // 设置处理状态
+        this.setButtonState(this.addCalibrationImageBtn, 'processing');
         
         const message = {
             action: 'add_calibration_image'
@@ -385,16 +514,24 @@ class VideoStream {
         this.ws.send(JSON.stringify(message));
         
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在采集标定图像';
+            this.lastOperation.textContent = 'Capturing calibration image';
         }
+        
+        // 2秒后恢复按钮状态
+        setTimeout(() => {
+            this.setButtonState(this.addCalibrationImageBtn, '');
+        }, 2000);
     }
     
     performCameraCalibration() {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket未连接');
-            this.updateStatus('error', 'WebSocket未连接');
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
             return;
         }
+        
+        // 设置处理状态
+        this.setButtonState(this.performCameraCalibrationBtn, 'processing');
         
         const message = {
             action: 'perform_camera_calibration'
@@ -404,16 +541,19 @@ class VideoStream {
         this.ws.send(JSON.stringify(message));
         
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在执行相机标定';
+            this.lastOperation.textContent = 'Performing camera calibration';
         }
     }
     
     saveCameraCalibration() {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket未连接');
-            this.updateStatus('error', 'WebSocket未连接');
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
             return;
         }
+        
+        // 设置处理状态
+        this.setButtonState(this.saveCameraCalibrationBtn, 'processing');
         
         const message = {
             action: 'save_camera_calibration'
@@ -423,25 +563,33 @@ class VideoStream {
         this.ws.send(JSON.stringify(message));
         
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在保存标定结果';
+            this.lastOperation.textContent = 'Saving calibration result';
         }
+        
+        // 2秒后恢复按钮状态
+        setTimeout(() => {
+            this.setButtonState(this.saveCameraCalibrationBtn, '');
+        }, 2000);
     }
     
     setBoardSize() {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket未连接');
-            this.updateStatus('error', 'WebSocket未连接');
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
             return;
         }
         
         const width = parseInt(this.boardWidthInput.value);
         const height = parseInt(this.boardHeightInput.value);
-        const squareSize = parseFloat(this.squareSizeInput.value) / 1000; // 转换为米
+        const squareSize = parseFloat(this.squareSizeInput.value) / 1000; // Convert to meters
         
         if (isNaN(width) || isNaN(height) || isNaN(squareSize)) {
-            alert('请输入有效的棋盘格参数！');
+            alert('Please enter valid chessboard parameters!');
             return;
         }
+        
+        // 设置处理状态
+        this.setButtonState(this.setBoardSizeBtn, 'processing');
         
         const message = {
             action: 'set_board_size',
@@ -454,12 +602,17 @@ class VideoStream {
         this.ws.send(JSON.stringify(message));
         
         if (this.lastOperation) {
-            this.lastOperation.textContent = '设置棋盘格参数';
+            this.lastOperation.textContent = 'Setting chessboard parameters';
         }
+        
+        // 1秒后恢复按钮状态
+        setTimeout(() => {
+            this.setButtonState(this.setBoardSizeBtn, '');
+        }, 1000);
     }
     
     handleServerMessage(message) {
-        // 处理相机标定相关消息
+        // Process camera calibration related messages
         if (message.type === 'camera_calibration_status') {
             this.cameraCalibrationMode = message.calibration_mode;
             this.cameraCalibrated = message.calibrated;
@@ -467,36 +620,141 @@ class VideoStream {
             this.updateCameraCalibrationUI();
             
             if (message.error !== undefined) {
-                this.calibrationErrorDisplay.textContent = message.error.toFixed(2) + ' 像素';
+                this.calibrationErrorDisplay.textContent = message.error.toFixed(2) + ' pixels';
             }
         }
     }
     
     updateCameraCalibrationUI() {
-        // 更新按钮状态
-        this.toggleCameraCalibrationBtn.textContent = this.cameraCalibrationMode ? 
-            '退出标定模式' : '相机标定模式';
-        this.toggleCameraCalibrationBtn.classList.toggle('active', this.cameraCalibrationMode);
+        // 切换按钮状态
+        this.setButtonState(this.toggleCameraCalibrationBtn, this.cameraCalibrationMode ? 'active' : '');
         
+        // 更新按钮文本 - 修改data-i18n属性而不是innerHTML
+        if (this.toggleCameraCalibrationBtn) {
+            const newKey = this.cameraCalibrationMode ? 'exit_calibration_mode' : 'camera_calibration_mode';
+            this.toggleCameraCalibrationBtn.setAttribute('data-i18n', newKey);
+            
+            // 立即应用语言
+            if (window.i18n) {
+                const span = this.toggleCameraCalibrationBtn.querySelector('span');
+                if (span) {
+                    span.textContent = window.i18n.t(newKey);
+                }
+            }
+        }
+        
+        // 启用/禁用相关按钮
+        if (this.addCalibrationImageBtn) {
+            this.addCalibrationImageBtn.disabled = !this.cameraCalibrationMode;
+        }
+        
+        if (this.performCameraCalibrationBtn) {
+            this.performCameraCalibrationBtn.disabled = !this.cameraCalibrationMode || this.calibrationImages < 10;
+        }
+        
+        if (this.saveCameraCalibrationBtn) {
+            this.saveCameraCalibrationBtn.disabled = !this.cameraCalibrated;
+        }
+        
+        // 更新自动采集按钮状态
+        if (this.startAutoCalibrationBtn) {
+            this.startAutoCalibrationBtn.disabled = !this.cameraCalibrationMode;
+        }
+        
+        if (this.stopAutoCalibrationBtn) {
+            this.stopAutoCalibrationBtn.disabled = true; // 默认禁用，只有在自动采集开始后才启用
+        }
+        
+        // 设置其他按钮状态
+        if (this.saveCameraCalibrationBtn) {
+            this.setButtonState(this.saveCameraCalibrationBtn, this.cameraCalibrated ? 'active' : '');
+        }
+        
+        // 显示图像数量信息
+        if (this.cameraCalibrationMode && this.lastOperation) {
+            const message = window.i18n ? 
+                `${window.i18n.t('current_image_count')}: ${this.calibrationImages}` :
+                `Current image count: ${this.calibrationImages}`;
+            this.lastOperation.textContent = message;
+        }
+        
+        // 更新保存的图片计数显示
+        if (this.savedImagesCount) {
+            const countText = window.i18n && window.i18n.getCurrentLanguage() === 'zh' ? 
+                `${this.calibrationImages} 张` : 
+                `${this.calibrationImages} images`;
+            this.savedImagesCount.textContent = countText;
+        }
+    }
+    
+    // 按钮状态管理方法
+    setButtonState(button, state) {
+        if (!button) return;
+        
+        // 移除所有状态类
+        button.classList.remove('active', 'processing');
+        
+        // 添加新状态
+        if (state === 'active') {
+            button.classList.add('active');
+        } else if (state === 'processing') {
+            button.classList.add('processing');
+        }
+    }
+    
+    // 更新相机标定UI状态
+    updateCameraCalibrationUIWithStates() {
+        // 切换按钮状态
+        this.setButtonState(this.toggleCameraCalibrationBtn, this.cameraCalibrationMode ? 'active' : '');
+        
+        // 更新按钮文本 - 修改data-i18n属性而不是innerHTML
+        if (this.toggleCameraCalibrationBtn) {
+            const newKey = this.cameraCalibrationMode ? 'exit_calibration_mode' : 'camera_calibration_mode';
+            this.toggleCameraCalibrationBtn.setAttribute('data-i18n', newKey);
+            
+            // 立即应用语言
+            if (window.i18n) {
+                const span = this.toggleCameraCalibrationBtn.querySelector('span');
+                if (span) {
+                    span.textContent = window.i18n.t(newKey);
+                }
+            }
+        }
+        
+        // 启用/禁用相关按钮
         this.addCalibrationImageBtn.disabled = !this.cameraCalibrationMode;
         this.performCameraCalibrationBtn.disabled = !this.cameraCalibrationMode || this.calibrationImages < 10;
         this.saveCameraCalibrationBtn.disabled = !this.cameraCalibrated;
         
+        // 设置其他按钮状态
+        this.setButtonState(this.saveCameraCalibrationBtn, this.cameraCalibrated ? 'active' : '');
+        
         // 显示图像数量信息
-        if (this.cameraCalibrationMode) {
-            this.lastOperation.textContent = `已采集 ${this.calibrationImages} 幅标定图像`;
+        if (this.cameraCalibrationMode && this.lastOperation) {
+            const message = window.i18n ? 
+                `${window.i18n.t('current_image_count')}: ${this.calibrationImages}` :
+                `Current image count: ${this.calibrationImages}`;
+            this.lastOperation.textContent = message;
+        }
+        
+        // 更新保存的图片计数显示
+        if (this.savedImagesCount) {
+            const countText = window.i18n && window.i18n.getCurrentLanguage() === 'zh' ? 
+                `${this.calibrationImages} 张` : 
+                `${this.calibrationImages} images`;
+            this.savedImagesCount.textContent = countText;
         }
     }
     
     updateHomographyMatrix(matrix) {
         if (this.homographyMatrix && matrix) {
-            // 保存原始矩阵数据用于导出
+            // Save original matrix data for export
             this.rawHomographyMatrix = matrix;
             
-            // 格式化矩阵显示
+            // Format matrix display
             let formattedMatrix = '';
             
-            // 检查矩阵格式（数组长度为9的一维数组）
+            // Check matrix format (1D array of length 9)
             if (Array.isArray(matrix) && matrix.length === 9) {
                 for (let i = 0; i < 3; i++) {
                     let row = [];
@@ -506,7 +764,7 @@ class VideoStream {
                     formattedMatrix += row.join('  ') + '\n';
                 }
             } 
-            // 如果是3x3矩阵格式
+            // If 3x3 matrix format
             else if (Array.isArray(matrix) && matrix.length === 3 && Array.isArray(matrix[0])) {
                 for (let i = 0; i < 3; i++) {
                     let row = [];
@@ -516,11 +774,11 @@ class VideoStream {
                     formattedMatrix += row.join('  ') + '\n';
                 }
             }
-            // 如果是字符串格式，直接显示
+            // If string format, display directly
             else if (typeof matrix === 'string') {
                 formattedMatrix = matrix;
             }
-            // 其他情况，尝试转换为字符串
+            // Other cases, try to convert to string
             else {
                 formattedMatrix = JSON.stringify(matrix, null, 2);
             }
@@ -536,53 +794,53 @@ class VideoStream {
     }
     
     exportHomographyMatrix() {
-        // 检查是否有矩阵数据
+        // Check if there is matrix data
         if (!this.homographyMatrix || this.homographyMatrix.textContent === '-') {
-            alert('单应性矩阵数据不可用，请先进行标定。');
+            alert('Homography matrix data not available, please perform calibration first.');
             return;
         }
         
-        // 创建导出数据
+        // Create export data
         const exportData = {
             timestamp: new Date().toISOString(),
-            description: '单应性矩阵（从图像到地面坐标的转换）'
+            description: 'Homography matrix (from image to ground coordinates)'
         };
         
-        // 使用原始矩阵数据（如果可用）
+        // Use original matrix data (if available)
         if (this.rawHomographyMatrix) {
             exportData.homography_matrix = this.rawHomographyMatrix;
         } else {
-            // 如果原始数据不可用，使用格式化的文本
+            // If original data not available, use formatted text
             exportData.homography_matrix = this.homographyMatrix.textContent;
         }
         
-        // 添加矩阵的格式化文本表示
+        // Add formatted text representation of the matrix
         exportData.formatted_matrix = this.homographyMatrix.textContent;
         
-        // 将数据转换为JSON格式
+        // Convert data to JSON format
         const jsonData = JSON.stringify(exportData, null, 2);
         
-        // 创建Blob对象
+        // Create Blob object
         const blob = new Blob([jsonData], { type: 'application/json' });
         
-        // 创建下载链接
+        // Create download link
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `homography_matrix_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
         
-        // 触发下载
+        // Trigger download
         document.body.appendChild(a);
         a.click();
         
-        // 清理
+        // Clean up
         setTimeout(() => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }, 0);
         
-        console.log('已导出单应性矩阵');
-        this.updateLastOperation('导出单应性矩阵');
+        console.log('Homography matrix exported');
+        this.updateLastOperation('Exported homography matrix');
     }
     
     send(data) {
@@ -590,60 +848,126 @@ class VideoStream {
             console.log('Sending message:', data);
             this.ws.send(JSON.stringify(data));
             
-            // 更新最后操作信息
+            // Update last operation information
             if (this.lastOperation) {
-                this.lastOperation.textContent = `发送命令: ${data.command}`;
+                this.lastOperation.textContent = `Sent command: ${data.command}`;
             }
         } else {
             console.error('WebSocket not connected');
-            this.updateStatus('error', 'WebSocket未连接');
+            this.updateStatus('error', 'WebSocket not connected');
         }
     }
     
-    // 统一的图像帧显示方法
+    // Unified image frame display method
     displayImageFrame(blob) {
-        const url = URL.createObjectURL(blob);
-        
-        // 创建临时图像对象来加载blob
-        const tempImg = new Image();
-        
-        tempImg.onload = () => {
-            // 清理之前的URL
+        try {
+            console.log('Received video frame, size:', blob.size, 'bytes');
+            
+            // Clean up previous URL
             if (this.currentBlobUrl) {
                 URL.revokeObjectURL(this.currentBlobUrl);
             }
             
-            // 直接设置img元素的src
-            this.video.src = url;
+            // Create new blob URL
+            const url = URL.createObjectURL(blob);
             this.currentBlobUrl = url;
             
-            // 更新帧计数和时间
-            this.frameCount++;
-            const now = performance.now();
-            this.frameTimes.push(now);
-            this.latency = now - this.lastFrameTime;
-            this.lastFrameTime = now;
+            // Directly set to img element
+            if (this.video) {
+                this.video.onload = () => {
+                    console.log('Frame loaded successfully');
+                    // Update frame count and time
+                    this.frameCount++;
+                    const now = performance.now();
+                    this.latency = now - this.lastFrameTime;
+                    this.lastFrameTime = now;
+                    
+                    // Update latency display
+                    if (this.latencyElement) {
+                        this.latencyElement.textContent = `${Math.round(this.latency)} ms`;
+                    }
+                    
+                    // Update resolution display
+                    if (this.resolutionElement && this.video.naturalWidth && this.video.naturalHeight) {
+                        this.resolutionElement.textContent = `${this.video.naturalWidth}×${this.video.naturalHeight}`;
+                    }
+                };
+                
+                this.video.onerror = (e) => {
+                    console.error('Failed to load video frame:', e);
+                };
+                
+                this.video.src = url;
+            } else {
+                console.error('Video element not found');
+            }
             
-            // 延迟清理URL，确保图像有时间显示
-            setTimeout(() => {
-                if (this.currentBlobUrl === url) {
-                    URL.revokeObjectURL(url);
-                    this.currentBlobUrl = null;
-                }
-            }, 100);
+        } catch (error) {
+            console.error('Error in displayImageFrame:', error);
+        }
+    }
+
+    // 添加自动采集方法
+    startAutoCalibrationCapture() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
+            return;
+        }
+        
+        // 获取参数
+        const duration = parseInt(this.autoCaptureTimeInput.value) || 10;
+        const interval = parseInt(this.autoCaptureIntervalInput.value) || 500;
+        
+        // 设置处理状态
+        this.setButtonState(this.startAutoCalibrationBtn, 'processing');
+        
+        const message = {
+            action: 'start_auto_calibration_capture',
+            duration: duration,
+            interval: interval
         };
         
-        tempImg.onerror = () => {
-            console.error('Failed to load image frame');
-            URL.revokeObjectURL(url);
+        console.log('Sending message:', message);
+        this.ws.send(JSON.stringify(message));
+        
+        if (this.lastOperation) {
+            const text = window.i18n ? 
+                window.i18n.t('starting_auto_capture', {duration: duration, interval: interval}) : 
+                `Starting auto capture for ${duration}s with ${interval}ms interval`;
+            this.lastOperation.textContent = text;
+        }
+    }
+
+    stopAutoCalibrationCapture() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            this.updateStatus('error', 'WebSocket not connected');
+            return;
+        }
+        
+        const message = {
+            action: 'stop_auto_calibration_capture'
         };
         
-        // 开始加载
-        tempImg.src = url;
+        console.log('Sending message:', message);
+        this.ws.send(JSON.stringify(message));
+        
+        if (this.lastOperation) {
+            const text = window.i18n ? 
+                window.i18n.t('stopping_auto_capture') : 
+                'Stopping auto capture';
+            this.lastOperation.textContent = text;
+        }
     }
 }
 
-// 当文档加载完成时初始化
+// When document is loaded, initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded event fired!');
+    console.log('Creating VideoStream instance...');
     window.videoStream = new VideoStream();
+    console.log('VideoStream instance created:', window.videoStream);
 });
+
+console.log('Script.js file completely loaded!');

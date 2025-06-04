@@ -1,5 +1,5 @@
 #include "VideoStreamer.h"
-#include <crow.h>
+#include <crow.h> //微型 web 框架，支持 http 和 websocket，拍照，视频解压缩都用的这个框架。
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -10,7 +10,7 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-    // Create Crow app
+    // Create Crow app初始化一个 crow 应用
     crow::SimpleApp app;
     
     // 设置路由和处理程序
@@ -18,7 +18,8 @@ int main(int argc, char** argv) {
     // Create video streamer
     VideoStreamer streamer;
     
-    // 初始化摄像头 - 使用自动检测功能和640x480分辨率
+    // 初始化摄像头 
+    // 这里 -1 表示自动检测使用第一个可用的摄像头设备，640x480 是分辨率，30 是帧率
     cout << "Detecting camera devices..." << endl;
     if (!streamer.initialize(-1, 640, 480, 30)) {
         cerr << "Failed to initialize camera" << endl;
@@ -367,9 +368,11 @@ int main(int argc, char** argv) {
                     // 添加标定图像
                     bool success = streamer.addCalibrationImage();
                     
-                    // 发送状态更新
+                    // 发送状态更新 - 包含完整的状态信息
                     std::string response = "{\"type\":\"camera_calibration_status\","
                                          "\"success\":" + std::string(success ? "true" : "false") + ","
+                                         "\"calibration_mode\":" + std::string(streamer.isCameraCalibrationMode() ? "true" : "false") + ","
+                                         "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + ","
                                          "\"image_count\":" + std::to_string(streamer.getCalibrationImageCount()) + "}";
                     conn.send_text(response);
                     
@@ -394,10 +397,66 @@ int main(int argc, char** argv) {
                                          "\"save_success\":" + std::string(success ? "true" : "false") + "}";
                     conn.send_text(response);
                     
+                } else if (action == "start_auto_calibration_capture") {
+                    // 解析参数
+                    int duration = 10; // 默认10秒
+                    int interval = 500; // 默认500毫秒
+                    
+                    // 解析duration字段
+                    size_t duration_pos = data.find("\"duration\":");
+                    if (duration_pos != std::string::npos) {
+                        size_t start = duration_pos + 11;
+                        size_t end = data.find(",", start);
+                        if (end == std::string::npos) end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            std::string duration_str = data.substr(start, end - start);
+                            try {
+                                duration = std::stoi(duration_str);
+                            } catch (...) {
+                                duration = 10; // 默认值
+                            }
+                        }
+                    }
+                    
+                    // 解析interval字段
+                    size_t interval_pos = data.find("\"interval\":");
+                    if (interval_pos != std::string::npos) {
+                        size_t start = interval_pos + 11;
+                        size_t end = data.find(",", start);
+                        if (end == std::string::npos) end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            std::string interval_str = data.substr(start, end - start);
+                            try {
+                                interval = std::stoi(interval_str);
+                            } catch (...) {
+                                interval = 500; // 默认值
+                            }
+                        }
+                    }
+                    
+                    // 启动自动采集
+                    bool success = streamer.startAutoCalibrationCapture(duration, interval);
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"auto_capture_status\","
+                                         "\"started\":" + std::string(success ? "true" : "false") + ","
+                                         "\"duration\":" + std::to_string(duration) + ","
+                                         "\"interval\":" + std::to_string(interval) + "}";
+                    conn.send_text(response);
+                    
+                } else if (action == "stop_auto_calibration_capture") {
+                    // 停止自动采集
+                    bool success = streamer.stopAutoCalibrationCapture();
+                    
+                    // 发送状态更新
+                    std::string response = "{\"type\":\"auto_capture_status\","
+                                         "\"stopped\":" + std::string(success ? "true" : "false") + "}";
+                    conn.send_text(response);
+                    
                 } else if (action == "set_board_size") {
                     // 解析棋盘格参数
-                    int width = 9, height = 6; // 默认值
-                    float square_size = 0.025f; // 默认值 25mm
+                    int width = 8, height = 5; // 默认值
+                    float square_size = 0.030f; // 默认值 30mm
                     
                     // 解析width字段
                     size_t width_pos = data.find("\"width\":");
@@ -454,6 +513,21 @@ int main(int argc, char** argv) {
             ws_connections.end());
     });
 
+    // 添加一个测试JavaScript路由
+    CROW_ROUTE(app, "/test.js")([]() {
+        crow::response res;
+        res.set_header("Content-Type", "application/javascript; charset=utf-8");
+        res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        res.set_header("Pragma", "no-cache");
+        res.set_header("Expires", "0");
+        res.body = R"(
+console.log('Test JavaScript loaded!');
+console.log('Current time:', new Date().toISOString());
+alert('Test JavaScript is working!');
+)";
+        return res;
+    });
+
     // Serve static files
     CROW_ROUTE(app, "/")([]() {
         crow::response res;
@@ -462,7 +536,13 @@ int main(int argc, char** argv) {
             std::stringstream buffer;
             buffer << file.rdbuf();
             res.body = buffer.str();
-            res.set_header("Content-Type", "text/html");
+            res.set_header("Content-Type", "text/html; charset=utf-8");
+            // 添加禁用缓存的 HTTP 头
+            res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            res.set_header("Pragma", "no-cache");
+            res.set_header("Expires", "0");
+            res.set_header("ETag", "");
+            res.set_header("Last-Modified", "");
         } else {
             res.body = "<html><body><h1>Error: index.html not found</h1></body></html>";
             res.code = 404;
@@ -472,6 +552,9 @@ int main(int argc, char** argv) {
 
     // Handle other static files
     CROW_ROUTE(app, "/<path>")([](const crow::request& req, crow::response& res, std::string path) {
+        // 记录请求的文件路径
+        std::cout << "Static file request: " << path << std::endl;
+        
         // Serve files from static directory
         if (path.empty()) {
             path = "index.html";
@@ -483,13 +566,17 @@ int main(int argc, char** argv) {
         
         if (ext == "html") content_type = "text/html";
         else if (ext == "css") content_type = "text/css";
-        else if (ext == "js") content_type = "application/javascript";
+        else if (ext == "js") content_type = "application/javascript; charset=utf-8";
         else if (ext == "jpg" || ext == "jpeg") content_type = "image/jpeg";
         else if (ext == "png") content_type = "image/png";
         
         // Try to read the file
-        std::ifstream file("static/" + path, std::ios::binary);
+        std::string full_path = "static/" + path;
+        std::cout << "Trying to read file: " << full_path << std::endl;
+        
+        std::ifstream file(full_path, std::ios::binary);
         if (!file.good()) {
+            std::cout << "File not found: " << full_path << std::endl;
             res.code = 404;
             res.body = "File not found";
             res.end();
@@ -500,12 +587,16 @@ int main(int argc, char** argv) {
         std::stringstream buffer;
         buffer << file.rdbuf();
         
+        std::cout << "File loaded successfully, size: " << buffer.str().length() << " bytes" << std::endl;
+        
         res.code = 200;
         res.set_header("Content-Type", content_type);
         // 添加禁用缓存的 HTTP 头
         res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
         res.set_header("Pragma", "no-cache");
         res.set_header("Expires", "0");
+        res.set_header("ETag", "");
+        res.set_header("Last-Modified", "");
         res.body = buffer.str();
         res.end();
     });
