@@ -65,7 +65,7 @@ body {
 .language-select {
     padding: 8px 12px;
     border: 1px solid rgba(233, 236, 239, 0.6);
-    border-radius: 4px;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.9);
     font-size: 14px;
     color: rgba(73, 80, 87, 0.8);
@@ -82,7 +82,7 @@ body {
 /* ===== 卡片系统 ===== */
 .card {
     background: rgba(255, 255, 255, 0.8);
-    border-radius: 2px;
+    border-radius: 4px;
     padding: 32px;
     margin-bottom: 24px;
     border: 2px dashed rgba(233, 236, 239, 0.6);
@@ -133,9 +133,9 @@ body {
 /* ===== 控制面板样式 ===== */
 .control-panel {
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 16px;
+    border-radius: 6px;
     padding: 16px;
-    border-left: 4px solid #3498db;
+    border-left: 4px solid #4a90a4;
     max-width: 100%;
     overflow: hidden;
     box-sizing: border-box;
@@ -184,7 +184,7 @@ body {
 .form-control {
     padding: 0.5rem;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 3px;
     font-size: 1rem;
     width: 100%;
 }
@@ -219,7 +219,7 @@ body {
 .btn {
     padding: 10px 16px;
     border: 2px solid transparent;
-    border-radius: 6px;
+    border-radius: 3px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -251,17 +251,17 @@ body {
     box-shadow: none;
 }
 
-/* 按钮颜色变体 */
+/* 按钮颜色变体 - 降低饱和度 */
 .btn-primary {
-    background: #007bff;
+    background: #4a90a4;
     color: #ffffff;
-    border: 2px solid #007bff;
+    border: 2px solid #4a90a4;
     font-weight: 600;
 }
 
 .btn-primary:hover {
-    background: #0056b3;
-    border-color: #0056b3;
+    background: #3c7a8c;
+    border-color: #3c7a8c;
     color: #ffffff;
 }
 
@@ -272,15 +272,15 @@ body {
 }
 
 .btn-success {
-    background: #28a745;
+    background: #5a9b6b;
     color: #ffffff;
-    border: 2px solid #28a745;
+    border: 2px solid #5a9b6b;
     font-weight: 600;
 }
 
 .btn-success:hover {
-    background: #218838;
-    border-color: #218838;
+    background: #4d8559;
+    border-color: #4d8559;
     color: #ffffff;
 }
 
@@ -310,28 +310,28 @@ body {
 }
 
 .btn-danger {
-    background: #dc3545;
+    background: #a85c5c;
     color: #ffffff;
-    border: 2px solid #dc3545;
+    border: 2px solid #a85c5c;
     font-weight: 600;
 }
 
 .btn-danger:hover {
-    background: #c82333;
-    border-color: #c82333;
+    background: #924d4d;
+    border-color: #924d4d;
     color: #ffffff;
 }
 
 /* 按钮状态样式 */
 .btn.active {
-    background-color: rgba(0, 255, 0, 0.3);
-    border-color: rgba(0, 255, 0, 0.5);
+    background-color: rgba(90, 180, 90, 0.3);
+    border-color: rgba(90, 180, 90, 0.5);
     color: #2d5a2d;
 }
 
 .btn.processing {
-    background-color: rgba(0, 255, 0, 0.6);
-    border-color: rgba(0, 255, 0, 0.8);
+    background-color: rgba(90, 180, 90, 0.6);
+    border-color: rgba(90, 180, 90, 0.8);
     color: #1a4d1a;
     animation: pulse 1.5s infinite;
 }
@@ -359,7 +359,7 @@ body {
 /* ===== 状态显示 ===== */
 .status-panel {
     background: rgba(248, 249, 250, 0.7);
-    border-radius: 2px;
+    border-radius: 3px;
     padding: 16px;
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     font-size: 13px;
@@ -388,21 +388,21 @@ body {
 }
 
 .status-value.success {
-    color: rgba(120, 150, 130, 0.8);
+    color: rgba(90, 130, 100, 0.8);
 }
 
 .status-value.error {
-    color: rgba(180, 120, 120, 0.8);
+    color: rgba(150, 100, 100, 0.8);
 }
 
 .status-value.warning {
-    color: rgba(200, 180, 120, 0.8);
+    color: rgba(160, 140, 100, 0.8);
 }
 
 /* ===== 视频显示区域 ===== */
 .video-container {
     background: rgba(0, 0, 0, 0.8);
-    border-radius: 2px;
+    border-radius: 3px;
     overflow: hidden;
     position: relative;
     margin-bottom: 20px;
@@ -903,7 +903,7 @@ input:checked + .slider:before {
 }
 
 .slider.round {
-    border-radius: 20px;
+    border-radius: 12px;
 }
 
 .slider.round:before {
@@ -938,7 +938,7 @@ input:checked + .slider:before {
 .parameter-group {
     background: rgba(248, 250, 252, 0.6);
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 1rem;
 }
 
@@ -953,7 +953,7 @@ input:checked + .slider:before {
 .operation-group {
     background: rgba(244, 250, 255, 0.6);
     border: 1px solid #bfdbfe;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 1rem;
 }
 
@@ -961,7 +961,7 @@ input:checked + .slider:before {
 .status-group {
     background: rgba(254, 249, 195, 0.6);
     border: 1px solid #fcd34d;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 1rem;
 }
 
@@ -1291,7 +1291,7 @@ input:checked + .slider:before {
     gap: 8px;
     padding: 10px;
     background: #f8f9fa;
-    border-radius: 8px;
+    border-radius: 4px;
     border: 1px solid #dee2e6;
 }
 
@@ -1312,7 +1312,7 @@ input:checked + .slider:before {
     width: 50px;
     height: 24px;
     background: #ccc;
-    border-radius: 24px;
+    border-radius: 12px;
     transition: background 0.3s;
 }
 
@@ -1330,7 +1330,7 @@ input:checked + .slider:before {
 }
 
 .switch-container input[type="checkbox"]:checked + .switch-slider {
-    background: #28a745;
+    background: #5a9b6b;
 }
 
 .switch-container input[type="checkbox"]:checked + .switch-slider::before {
@@ -1358,7 +1358,7 @@ input:checked + .slider:before {
 .correction-status {
     font-size: 12px;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 3px;
     text-align: center;
 }
 
