@@ -7,7 +7,7 @@
 using namespace std;
 using namespace std::chrono_literals;
 
-VideoStreamer::VideoStreamer() : width_(1280), height_(720), fps_(30) {
+VideoStreamer::VideoStreamer() : width_(1920), height_(1080), fps_(30) {
     // 初始化
     // 尝试加载已有的标定数据
     std::ifstream file(calibrationFilePath_);
@@ -19,6 +19,12 @@ VideoStreamer::VideoStreamer() : width_(1280), height_(720), fps_(30) {
     // 启用保存标定图像功能
     cameraCalibrator_.setSaveCalibrationImages(true);
     std::cout << "Camera calibrator initialized, saveCalibrationImages set to true" << std::endl;
+    
+    // 初始化双分辨率设置
+    displayWidth_ = 960;     // 显示分辨率：16:9比例
+    displayHeight_ = 540;
+    detectionWidth_ = 1920;  // 检测分辨率：高精度
+    detectionHeight_ = 1080;
 }
 
 VideoStreamer::~VideoStreamer() {
@@ -571,21 +577,35 @@ void VideoStreamer::drawCalibrationPoints(cv::Mat& frame) {
 }
 
 void VideoStreamer::broadcastFrame() {
-    static int frame_count = 0;
+    static int frame_count = 0;  // 静态帧计数器
     
     // 检查是否有连接
     if (connections_.empty()) {
         return;
     }
     
-    // 获取当前帧
     cv::Mat processedFrame;
-    {
+    
+    // 根据模式选择合适的帧分辨率
+    if (cameraCalibrationMode_) {
+        // 相机标定模式：使用优化的显示帧（已包含角点绘制）
+        processedFrame = getDisplayFrame();
+        if (processedFrame.empty()) {
+            return;
+        }
+    } else {
+        // 普通模式：使用原始帧
         std::lock_guard<std::mutex> lock(mutex_);
         if (frame_.empty()) {
             return;
         }
         processedFrame = frame_.clone();
+    }
+    
+    // 验证帧数据完整性
+    if (processedFrame.empty() || processedFrame.cols <= 0 || processedFrame.rows <= 0) {
+        std::cerr << "Warning: Invalid frame data, skipping broadcast" << std::endl;
+        return;
     }
     
     // 如果在标定模式下，绘制标定点
@@ -598,9 +618,27 @@ void VideoStreamer::broadcastFrame() {
         detectArUcoMarkers(processedFrame);
     }
     
-    // 将帧编码为JPEG
+    // 将帧编码为JPEG，使用更高质量参数和错误检查
     std::vector<uchar> buf;
-    cv::imencode(".jpg", processedFrame, buf);
+    std::vector<int> encode_params = {
+        cv::IMWRITE_JPEG_QUALITY, 85,  // 提高JPEG质量到85%
+        cv::IMWRITE_JPEG_OPTIMIZE, 1   // 启用JPEG优化
+    };
+    
+    bool encode_success = cv::imencode(".jpg", processedFrame, buf, encode_params);
+    
+    // 检查编码是否成功
+    if (!encode_success || buf.empty()) {
+        std::cerr << "Warning: JPEG encoding failed, skipping frame transmission" << std::endl;
+        return;
+    }
+    
+    // 验证编码结果的大小合理性
+    if (buf.size() < 100 || buf.size() > 1024 * 1024) {  // 100字节到1MB之间
+        std::cerr << "Warning: JPEG encoded size abnormal (" << buf.size() 
+                  << " bytes), skipping frame transmission" << std::endl;
+        return;
+    }
     
     // 每100帧发送一次分辨率信息
     if (frame_count % 100 == 0) {
@@ -613,16 +651,26 @@ void VideoStreamer::broadcastFrame() {
         std::lock_guard<std::mutex> conn_lock(conn_mutex_);
         for (auto conn : connections_) {
             if (conn) {
-                conn->send_text(info_message);
+                try {
+                    conn->send_text(info_message);
+                } catch (const std::exception& e) {
+                    std::cerr << "Error sending frame info: " << e.what() << std::endl;
+                }
             }
         }
     }
     
-    // 广播帧数据
-    std::lock_guard<std::mutex> lock(conn_mutex_);
-    for (auto conn : connections_) {
-        if (conn) {
-            conn->send_binary(std::string(buf.begin(), buf.end()));
+    // 广播帧数据 - 添加异常处理
+    {
+        std::lock_guard<std::mutex> lock(conn_mutex_);
+        for (auto conn : connections_) {
+            if (conn) {
+                try {
+                    conn->send_binary(std::string(buf.begin(), buf.end()));
+                } catch (const std::exception& e) {
+                    std::cerr << "Error sending frame data: " << e.what() << std::endl;
+                }
+            }
         }
     }
     
@@ -649,39 +697,82 @@ void VideoStreamer::captureThread() {
                 continue;
             }
             
-            // 如果已经完成相机标定，则进行图像校正
-            if (isCameraCalibrated()) {
-                frame = cameraCalibrator_.undistortImage(frame);
+            // 验证帧数据完整性
+            if (frame.cols <= 0 || frame.rows <= 0) {
+                cerr << "Error: Invalid frame dimensions" << endl;
+                continue;
             }
             
-            // 如果处于相机标定模式，在图像上绘制棋盘格角点
+            // 创建处理帧的副本，避免修改原始帧
+            cv::Mat processedFrame = frame.clone();
+            
+            // 如果已经完成相机标定，则进行图像校正
+            if (isCameraCalibrated()) {
+                try {
+                    processedFrame = cameraCalibrator_.undistortImage(processedFrame);
+                } catch (const std::exception& e) {
+                    cerr << "Error in undistortion: " << e.what() << endl;
+                    processedFrame = frame.clone(); // 回退到原始帧
+                }
+            }
+            
+            // 如果处于相机标定模式，使用轻量级显示处理
             if (cameraCalibrationMode_) {
-                // 使用公共棋盘格检测方法
-                std::vector<cv::Point2f> corners;
-                bool found = cameraCalibrator_.detectChessboard(frame, corners, false);
-                
-                if (found) {
-                    // 在图像上绘制检测到的角点
-                    cv::drawChessboardCorners(frame, cameraCalibrator_.getBoardSize(), corners, found);
+                try {
+                    // 对显示分辨率的帧进行轻量级处理
+                    cv::Mat displayFrame;
+                    if (processedFrame.cols != displayWidth_ || processedFrame.rows != displayHeight_) {
+                        cv::resize(processedFrame, displayFrame, cv::Size(displayWidth_, displayHeight_));
+                    } else {
+                        displayFrame = processedFrame.clone();
+                    }
                     
-                    // 简洁的状态提示 - 右上角，不影响画面主体
-                    cv::putText(frame, "Chessboard OK", cv::Point(frame.cols - 160, 30),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
-                } else {
-                    // 简洁的提示信息 - 右上角显示
-                    cv::putText(frame, "No chessboard", cv::Point(frame.cols - 150, 30),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2, cv::LINE_AA);
+                    // 只在显示帧上做简单的棋盘格检测和绘制（低精度，快速）
+                    std::vector<cv::Point2f> corners;
+                    bool found = false;
+                    
+                    // 使用更宽松的检测条件进行快速检测
+                    int quickFlags = cv::CALIB_CB_ADAPTIVE_THRESH;
+                    found = cv::findChessboardCorners(displayFrame, cameraCalibrator_.getBoardSize(), corners, quickFlags);
+                    
+                    if (found) {
+                        // 缩放角点坐标回原始帧比例（用于精确显示）
+                        float scaleX = (float)processedFrame.cols / displayWidth_;
+                        float scaleY = (float)processedFrame.rows / displayHeight_;
+                        for (auto& corner : corners) {
+                            corner.x *= scaleX;
+                            corner.y *= scaleY;
+                        }
+                        
+                        cv::drawChessboardCorners(processedFrame, cameraCalibrator_.getBoardSize(), corners, found);
+                        cv::putText(processedFrame, "Chessboard OK", cv::Point(processedFrame.cols - 160, 30),
+                                  cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+                    } else {
+                        cv::putText(processedFrame, "Searching...", cv::Point(processedFrame.cols - 150, 30),
+                                  cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2, cv::LINE_AA);
+                    }
+                    
+                } catch (const std::exception& e) {
+                    cerr << "Error in chessboard visualization: " << e.what() << endl;
                 }
             } else if (calibrationMode_) {
                 // 坐标变换标定模式的简洁提示
-                cv::putText(frame, "Click to add point", cv::Point(frame.cols - 180, 30),
+                cv::putText(processedFrame, "Click to add point", cv::Point(processedFrame.cols - 180, 30),
                           cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 200, 0), 2, cv::LINE_AA);
             }
             
-            // 更新当前帧
+            // 双流策略：存储两种分辨率的帧
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                frame_ = frame.clone();
+                if (cameraCalibrationMode_) {
+                    // 标定模式：存储显示用的处理帧和原始检测帧
+                    frame_ = processedFrame;        // 显示用处理帧（带角点绘制）
+                    detectionFrame_ = frame.clone(); // 原始帧用于精确检测
+                } else {
+                    // 正常模式：直接存储处理帧
+                    frame_ = processedFrame;
+                    detectionFrame_ = frame.clone(); // 保持同步
+                }
             }
         } else {
             cerr << "Error: Failed to read frame" << endl;
@@ -701,18 +792,15 @@ bool VideoStreamer::toggleCameraCalibrationMode() {
 }
 
 bool VideoStreamer::addCalibrationImage() {
-    cv::Mat frame;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        frame = frame_.clone();
-    }
+    // 使用高分辨率检测帧进行标定
+    cv::Mat detectionFrame = getDetectionFrame();
     
-    if (frame.empty()) {
-        std::cerr << "No frame available for calibration" << std::endl;
+    if (detectionFrame.empty()) {
+        std::cerr << "No detection frame available for calibration" << std::endl;
         return false;
     }
     
-    return cameraCalibrator_.addCalibrationImage(frame);
+    return cameraCalibrator_.addCalibrationImage(detectionFrame);
 }
 
 bool VideoStreamer::performCameraCalibration() {
@@ -735,6 +823,14 @@ void VideoStreamer::setChessboardSize(int width, int height) {
 
 void VideoStreamer::setSquareSize(float size) {
     cameraCalibrator_.setSquareSize(size);
+}
+
+void VideoStreamer::setBlurKernelSize(int size) {
+    cameraCalibrator_.setBlurKernelSize(size);
+}
+
+int VideoStreamer::getBlurKernelSize() const {
+    return cameraCalibrator_.getBlurKernelSize();
 }
 
 double VideoStreamer::getCalibrationError() const {
@@ -800,25 +896,19 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
     
     // 循环直到达到结束时间或停止标志被设置
     while (autoCapturing_ && std::chrono::steady_clock::now() < endTime) {
-        // 获取当前帧
-        cv::Mat frame;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (!frame_.empty()) {
-                frame = frame_.clone();
-            }
-        }
+        // 获取用于检测的高分辨率帧
+        cv::Mat detectionFrame = getDetectionFrame();
         
-        if (!frame.empty()) {
+        if (!detectionFrame.empty()) {
             attemptCount++;
             
             // 尝试检测棋盘格并添加标定图像
             std::vector<cv::Point2f> corners;
-            bool found = cameraCalibrator_.detectChessboard(frame, corners, false);
+            bool found = cameraCalibrator_.detectChessboard(detectionFrame, corners, true);  // 使用完整的调试检测
             
             if (found) {
                 // 如果检测成功，添加标定图像
-                if (cameraCalibrator_.addCalibrationImage(frame)) {
+                if (cameraCalibrator_.addCalibrationImage(detectionFrame)) {
                     successCount++;
                     std::cout << "Auto capture: Successfully added calibration image " 
                               << successCount << " (attempt " << attemptCount << ")" << std::endl;
@@ -867,4 +957,37 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
             conn->send_text(completion_message);
         }
     }
+}
+
+// 双分辨率支持方法
+void VideoStreamer::setDisplayResolution(int width, int height) {
+    displayWidth_ = width;
+    displayHeight_ = height;
+}
+
+void VideoStreamer::setDetectionResolution(int width, int height) {
+    detectionWidth_ = width;
+    detectionHeight_ = height;
+}
+
+cv::Mat VideoStreamer::getDisplayFrame() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (frame_.empty()) return cv::Mat();
+    
+    // 如果当前帧分辨率与显示分辨率不同，进行缩放
+    if (frame_.cols != displayWidth_ || frame_.rows != displayHeight_) {
+        cv::Mat displayFrame;
+        cv::resize(frame_, displayFrame, cv::Size(displayWidth_, displayHeight_));
+        return displayFrame;
+    }
+    
+    return frame_.clone();
+}
+
+cv::Mat VideoStreamer::getDetectionFrame() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (detectionFrame_.empty()) return cv::Mat();
+    
+    // 检测总是使用原始高分辨率帧
+    return detectionFrame_.clone();
 }

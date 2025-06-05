@@ -17,6 +17,10 @@ public:
     void setSaveCalibrationImages(bool save) { saveCalibrationImages = save; }
     bool getSaveCalibrationImages() const { return saveCalibrationImages; }
     
+    // 高斯模糊核设置
+    void setBlurKernelSize(int size) { blurKernelSize = size; }
+    int getBlurKernelSize() const { return blurKernelSize; }
+    
     // 添加标定图像
     bool addCalibrationImage(const cv::Mat& image);
     
@@ -67,6 +71,9 @@ private:
 
     // 图像保存控制
     bool saveCalibrationImages;
+    
+    // 高斯模糊核大小
+    int blurKernelSize;      // 0=无模糊, 3,5,7,9等
 };
 
 #endif // CAMERA_CALIBRATOR_H

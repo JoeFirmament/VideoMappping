@@ -32,6 +32,7 @@ class I18n {
                 camera_calibration_desc: '用于消除镜头畸变，提高测量精度',
                 camera_calibration_mode: '相机标定模式',
                 capture_image: '采集标定图像',
+                manual_capture_image: '手动采集标定图像',
                 capture_image_hint: '点击按钮从当前视频帧采集标定图像',
                 perform_calibration: '执行标定',
                 save_calibration: '保存标定结果',
@@ -47,6 +48,18 @@ class I18n {
                 set_parameters: '设置参数',
                 reprojection_error: '重投影误差',
                 saved_images_count: '已保存标定图片',
+                
+                // 自动采集相关
+                auto_capture_settings: '自动采集设置',
+                auto_capture_time: '自动采集时间(秒)',
+                auto_capture_interval: '采集间隔(毫秒)',
+                start_auto_capture: '开始自动采集',
+                stop_auto_capture: '停止自动采集',
+                
+                // 倒计时相关
+                remaining_time: '剩余时间',
+                next_capture_in: '下次采集',
+                capture_progress: '采集进度',
                 
                 // 坐标变换标定
                 coordinate_transform_calibration: '坐标变换标定',
@@ -97,16 +110,35 @@ class I18n {
                 calibration_successful: '标定成功，单应性矩阵已更新',
                 current_image_count: '已采集图像数量',
                 pixels: '像素',
-                auto_capture_time: '自动采集时间(秒)',
-                auto_capture_interval: '采集间隔(毫秒)',
-                start_auto_capture: '开始自动采集',
-                stop_auto_capture: '停止自动采集',
                 auto_capture_started: '自动采集已开始，持续{{duration}}秒，间隔{{interval}}毫秒',
                 auto_capture_failed: '启动自动采集失败',
                 auto_capture_stopped: '自动采集已停止',
                 auto_capture_completed: '自动采集完成：成功{{success}}张，共尝试{{total}}次',
                 starting_auto_capture: '正在启动自动采集，持续{{duration}}秒，间隔{{interval}}毫秒',
-                stopping_auto_capture: '正在停止自动采集'
+                stopping_auto_capture: '正在停止自动采集',
+                
+                // 新增翻译键
+                manual_capture_image: "手动采集标定图像",
+                auto_capture_settings: "自动采集设置",
+                remaining_time: "剩余时间",
+                next_capture_in: "下次采集",
+                capture_progress: "采集进度",
+                
+                // 高斯模糊相关
+                blur_kernel_size: "高斯模糊核",
+                blur_kernel_hint: "适用于低光照环境的图像模糊处理",
+                blur_none: "无模糊",
+                blur_light: "3x3 (轻微)",
+                blur_medium: "5x5 (中等)",
+                blur_strong: "7x7 (强)",
+                blur_extreme: "9x9 (极强)",
+                
+                // 分辨率和性能相关
+                display_resolution: "显示分辨率",
+                detection_resolution: "检测分辨率",
+                performance_mode: "性能模式",
+                dual_resolution: "双分辨率",
+                single_resolution: "单分辨率"
             },
             en: {
                 // 页面标题
@@ -137,6 +169,7 @@ class I18n {
                 camera_calibration_desc: 'Used to eliminate lens distortion and improve measurement accuracy',
                 camera_calibration_mode: 'Camera Calibration Mode',
                 capture_image: 'Capture Image',
+                manual_capture_image: 'Manual Capture Image',
                 capture_image_hint: 'Click the button to capture a calibration image from the current video frame',
                 perform_calibration: 'Perform Calibration',
                 save_calibration: 'Save Calibration',
@@ -152,6 +185,18 @@ class I18n {
                 set_parameters: 'Set Parameters',
                 reprojection_error: 'Reprojection Error',
                 saved_images_count: 'Saved Calibration Images',
+                
+                // 自动采集相关
+                auto_capture_settings: 'Auto Capture Settings',
+                auto_capture_time: 'Auto Capture Time (sec)',
+                auto_capture_interval: 'Capture Interval (ms)',
+                start_auto_capture: 'Start Auto Capture',
+                stop_auto_capture: 'Stop Auto Capture',
+                
+                // 倒计时相关
+                remaining_time: 'Remaining Time',
+                next_capture_in: 'Next Capture In',
+                capture_progress: 'Capture Progress',
                 
                 // 坐标变换标定
                 coordinate_transform_calibration: 'Coordinate Transform Calibration',
@@ -202,16 +247,35 @@ class I18n {
                 calibration_successful: 'Calibration successful, homography matrix updated',
                 current_image_count: 'Current image count',
                 pixels: 'pixels',
-                auto_capture_time: 'Auto Capture Time (sec)',
-                auto_capture_interval: 'Capture Interval (ms)',
-                start_auto_capture: 'Start Auto Capture',
-                stop_auto_capture: 'Stop Auto Capture',
                 auto_capture_started: 'Auto capture started for {{duration}}s with {{interval}}ms interval',
                 auto_capture_failed: 'Failed to start auto capture',
                 auto_capture_stopped: 'Auto capture stopped',
                 auto_capture_completed: 'Auto capture completed: {{success}} successful out of {{total}} attempts',
                 starting_auto_capture: 'Starting auto capture for {{duration}}s with {{interval}}ms interval',
-                stopping_auto_capture: 'Stopping auto capture'
+                stopping_auto_capture: 'Stopping auto capture',
+                
+                // 新增翻译键
+                manual_capture_image: "Manual capture calibration image",
+                auto_capture_settings: "Auto capture settings",
+                remaining_time: "Remaining time",
+                next_capture_in: "Next capture in",
+                capture_progress: "Capture progress",
+                
+                // 高斯模糊相关
+                blur_kernel_size: "Gaussian Blur Kernel",
+                blur_kernel_hint: "Image blur processing for low-light environments",
+                blur_none: "No Blur",
+                blur_light: "3x3 (Light)",
+                blur_medium: "5x5 (Medium)",
+                blur_strong: "7x7 (Strong)",
+                blur_extreme: "9x9 (Extreme)",
+                
+                // 分辨率和性能相关
+                display_resolution: "Display Resolution",
+                detection_resolution: "Detection Resolution",
+                performance_mode: "Performance Mode",
+                dual_resolution: "Dual Resolution",
+                single_resolution: "Single Resolution"
             }
         };
         

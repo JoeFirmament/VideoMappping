@@ -60,6 +60,8 @@ public:
     bool loadCameraCalibration(const std::string& filename = "");
     void setChessboardSize(int width, int height);
     void setSquareSize(float size);
+    void setBlurKernelSize(int size);  // 设置高斯模糊核大小
+    int getBlurKernelSize() const;     // 获取高斯模糊核大小
     double getCalibrationError() const;
     bool isCameraCalibrated() const;
     size_t getCalibrationImageCount() const; // 新增方法
@@ -69,15 +71,23 @@ public:
     bool stopAutoCalibrationCapture();
     bool isAutoCapturing() const { return autoCapturing_; }
 
+    // 双分辨率支持
+    void setDisplayResolution(int width, int height);
+    void setDetectionResolution(int width, int height);
+    cv::Mat getDisplayFrame();
+    cv::Mat getDetectionFrame();
+
 private:
     void captureThread(); // 添加线程函数声明
     void sendCameraInfo(Connection conn); // 发送摄像头信息给客户端
+    void autoCalibrationCaptureThread(int durationSeconds, int intervalMs); // 添加自动采集线程声明
     
     cv::VideoCapture cap_;
     std::atomic<bool> running_{false};
     std::thread worker_;
     std::mutex mutex_;
     cv::Mat frame_;
+    cv::Mat detectionFrame_;  // 用于检测的原始高分辨率帧
     int width_;
     int height_;
     int fps_;
@@ -101,4 +111,8 @@ private:
     // 自动采集标定图像相关
     std::atomic<bool> autoCapturing_{false};
     std::thread autoCapturingThread_;
+
+    // 双分辨率支持
+    int displayWidth_, displayHeight_;
+    int detectionWidth_, detectionHeight_;
 };

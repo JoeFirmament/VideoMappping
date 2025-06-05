@@ -10,6 +10,7 @@ CameraCalibrator::CameraCalibrator()
     , totalError(0.0)
     , imageSize(0, 0)  // 初始化为空尺寸
     , saveCalibrationImages(false)  // 默认不保存图像
+    , blurKernelSize(5)  // 默认5x5高斯模糊核
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
@@ -39,85 +40,165 @@ bool CameraCalibrator::detectChessboard(const cv::Mat& image, std::vector<cv::Po
         std::string debugDir = "calibration_images/debug";
         system("mkdir -p calibration_images/debug");
         cv::imwrite(debugDir + "/gray_" + std::to_string(time(nullptr)) + ".jpg", grayImage);
+        
+        // 添加更详细的调试信息
+        std::cout << "=== CHESSBOARD DETECTION DEBUG ===" << std::endl;
+        std::cout << "Image size: " << image.cols << "x" << image.rows << std::endl;
+        std::cout << "Image channels: " << image.channels() << std::endl;
+        std::cout << "Target board size: " << boardSize.width << "x" << boardSize.height << " corners" << std::endl;
+        std::cout << "Expected corner count: " << (boardSize.width * boardSize.height) << std::endl;
     }
     
     bool found = false;
     
-    // 方法1: 使用前端使用的标准参数组合 - 这是最常用的组合
-    int flags = cv::CALIB_CB_ADAPTIVE_THRESH | 
-               cv::CALIB_CB_NORMALIZE_IMAGE |
-               cv::CALIB_CB_FILTER_QUADS |
-               cv::CALIB_CB_FAST_CHECK;
+    // 方法1: 使用宽松的检测参数 - 移除严格的FILTER_QUADS和FAST_CHECK
+    int relaxed_flags = cv::CALIB_CB_ADAPTIVE_THRESH | 
+                       cv::CALIB_CB_NORMALIZE_IMAGE;
     
-    found = cv::findChessboardCorners(grayImage, boardSize, corners, flags);
+    found = cv::findChessboardCorners(grayImage, boardSize, corners, relaxed_flags);
     
     if (isForCalibration) {
-        std::cout << "Standard detection method: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+        std::cout << "Method 1 - Relaxed detection (" << boardSize.width << "x" << boardSize.height << "): " 
+                  << (found ? "SUCCESS" : "FAILED") << std::endl;
+        if (found) {
+            std::cout << "Found " << corners.size() << " corners with relaxed flags" << std::endl;
+        }
     }
     
-    // 如果是标定模式且标准方法失败，尝试更多方法
-    if (isForCalibration && !found) {
-        // 方法2: 图像预处理
-        cv::Mat enhancedImage;
-        cv::GaussianBlur(grayImage, enhancedImage, cv::Size(5, 5), 0);
-        cv::adaptiveThreshold(enhancedImage, enhancedImage, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 11, 2);
+    // 方法2: 高斯模糊预处理（优先尝试，适合低光照环境）
+    if (!found && blurKernelSize > 0) {
+        cv::Mat blurredImage;
+        cv::GaussianBlur(grayImage, blurredImage, cv::Size(blurKernelSize, blurKernelSize), 0);
         
-        // 保存预处理后的图像
-        std::string debugDir = "calibration_images/debug";
-        cv::imwrite(debugDir + "/enhanced_" + std::to_string(time(nullptr)) + ".jpg", enhancedImage);
+        found = cv::findChessboardCorners(blurredImage, boardSize, corners, relaxed_flags);
         
-        found = cv::findChessboardCorners(enhancedImage, boardSize, corners, flags);
-        std::cout << "Enhanced image method: " << (found ? "SUCCESS" : "FAILED") << std::endl;
-        
-        // 方法3: 尝试反转棋盘格大小
-        if (!found) {
-            std::cout << "Trying with reversed board size..." << std::endl;
-            cv::Size reversedSize(boardSize.height, boardSize.width);
-            found = cv::findChessboardCorners(grayImage, reversedSize, corners, flags);
-            
-            std::cout << "Reversed size " << reversedSize.width << "x" << reversedSize.height << ": " 
+        if (isForCalibration) {
+            std::cout << "Method 2 - Gaussian blur (" << blurKernelSize << "x" << blurKernelSize << "): " 
                       << (found ? "SUCCESS" : "FAILED") << std::endl;
-            
             if (found) {
-                std::cout << "Found chessboard with reversed size: " << reversedSize.width << "x" << reversedSize.height << std::endl;
-                std::cout << "IMPORTANT: Please update your board size settings to " << reversedSize.width << "x" << reversedSize.height << std::endl;
+                std::cout << "Found " << corners.size() << " corners after Gaussian blur" << std::endl;
             }
         }
+    }
+    
+    // 方法3: 如果宽松方法失败，尝试无标志检测（最宽松）
+    if (!found) {
+        found = cv::findChessboardCorners(grayImage, boardSize, corners, 0);
+        if (isForCalibration) {
+            std::cout << "Method 3 - No flags detection: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+            if (found) {
+                std::cout << "Found " << corners.size() << " corners with no flags" << std::endl;
+            }
+        }
+    }
+    
+    // 方法4: 图像增强后检测（针对远距离低像素场景）
+    if (!found) {
+        cv::Mat enhancedImage;
         
-        // 方法4: 尝试不同的棋盘格大小
+        // 尝试锐化处理（对远距离场景有帮助）
+        cv::Mat kernel = (cv::Mat_<float>(3,3) << 
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0);
+        cv::filter2D(grayImage, enhancedImage, grayImage.depth(), kernel);
+        
+        found = cv::findChessboardCorners(enhancedImage, boardSize, corners, relaxed_flags);
+        
+        if (isForCalibration) {
+            std::cout << "Method 4 - Enhanced (sharpened) image: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+            if (found) {
+                std::cout << "Found " << corners.size() << " corners after sharpening" << std::endl;
+                // 保存成功的增强图像
+                std::string debugDir = "calibration_images/debug";
+                cv::imwrite(debugDir + "/enhanced_success_sharp_" + std::to_string(time(nullptr)) + ".jpg", enhancedImage);
+            }
+        }
+    }
+    
+    // 方法5: 对比度增强
+    if (!found) {
+        cv::Mat contrastImage;
+        grayImage.convertTo(contrastImage, -1, 1.5, 0); // 增加对比度
+        
+        found = cv::findChessboardCorners(contrastImage, boardSize, corners, relaxed_flags);
+        
+        if (isForCalibration) {
+            std::cout << "Method 5 - Contrast enhanced image: " << (found ? "SUCCESS" : "FAILED") << std::endl;
+            if (found) {
+                std::cout << "Found " << corners.size() << " corners after contrast enhancement" << std::endl;
+            }
+        }
+    }
+    
+    // 如果是标定模式且仍然失败，尝试更多方法
+    if (isForCalibration && !found) {
+        
+        // 方法6: 尝试反转棋盘格大小
+        std::cout << "Method 6 - Trying with reversed board size..." << std::endl;
+        cv::Size reversedSize(boardSize.height, boardSize.width);
+        found = cv::findChessboardCorners(grayImage, reversedSize, corners, relaxed_flags);
+        
+        std::cout << "Reversed size " << reversedSize.width << "x" << reversedSize.height << ": " 
+                  << (found ? "SUCCESS" : "FAILED") << std::endl;
+        
+        if (found) {
+            std::cout << "IMPORTANT: Found chessboard with reversed size: " << reversedSize.width << "x" << reversedSize.height << std::endl;
+            std::cout << "Please update your board size settings to " << reversedSize.width << "x" << reversedSize.height << std::endl;
+        }
+        
+        // 方法7: 尝试常见的棋盘格大小
         if (!found) {
-            std::cout << "Trying different board sizes..." << std::endl;
-            std::vector<cv::Size> alternativeSizes = {
-                cv::Size(7, 4),  // 一行少一个角点
-                cv::Size(9, 6),  // 标准大小
-                cv::Size(4, 7),  // 反转的一行少一个角点
-                cv::Size(6, 9)   // 反转的标准大小
+            std::cout << "Method 7 - Trying common board sizes..." << std::endl;
+            std::vector<cv::Size> commonSizes = {
+                cv::Size(7, 4),   // 8x5棋盘格的角点
+                cv::Size(6, 4),   // 7x5棋盘格的角点  
+                cv::Size(9, 6),   // 10x7棋盘格的角点
+                cv::Size(6, 9),   // 反转的10x7
+                cv::Size(4, 6),   // 反转的7x5
+                cv::Size(4, 7),   // 反转的8x5
+                cv::Size(5, 7),   // 6x8棋盘格的角点
+                cv::Size(7, 5),   // 8x6棋盘格的角点
             };
             
-            for (const auto& size : alternativeSizes) {
+            for (const auto& size : commonSizes) {
                 if (size.width == boardSize.width && size.height == boardSize.height) {
                     continue; // 跳过已经尝试过的大小
                 }
                 
-                std::cout << "Trying alternative size: " << size.width << "x" << size.height << std::endl;
-                found = cv::findChessboardCorners(grayImage, size, corners, flags);
-                
-                std::cout << "Alternative size " << size.width << "x" << size.height << ": " 
-                          << (found ? "SUCCESS" : "FAILED") << std::endl;
+                std::cout << "  Trying size: " << size.width << "x" << size.height << std::endl;
+                found = cv::findChessboardCorners(grayImage, size, corners, relaxed_flags);
                 
                 if (found) {
-                    std::cout << "Found chessboard with alternative size: " << size.width << "x" << size.height << std::endl;
+                    std::cout << "SUCCESS with size " << size.width << "x" << size.height 
+                              << " (found " << corners.size() << " corners)" << std::endl;
                     std::cout << "IMPORTANT: Please update your board size settings to " << size.width << "x" << size.height << std::endl;
                     break;
                 }
             }
         }
+        
+        std::cout << "=== DETECTION SUMMARY ===" << std::endl;
+        if (found) {
+            std::cout << "SUCCESS: Found " << corners.size() << " corners" << std::endl;
+        } else {
+            std::cout << "FAILED: No chessboard detected with any method" << std::endl;
+            std::cout << "Troubleshooting suggestions:" << std::endl;
+            std::cout << "1. Check if your chessboard has " << boardSize.width << "x" << boardSize.height << " INTERNAL corners" << std::endl;
+            std::cout << "2. Ensure good lighting without glare or shadows" << std::endl;
+            std::cout << "3. Hold the board flat and fully visible" << std::endl;
+            std::cout << "4. Try different board orientations" << std::endl;
+            std::cout << "5. Check if board size settings match your actual board" << std::endl;
+            std::cout << "6. For distant shots, try moving closer to the camera" << std::endl;
+        }
+        std::cout << "=================================" << std::endl;
     }
     
-    // 如果找到了棋盘格，进行亚像素级角点检测
+    // 如果找到了棋盘格，进行宽松的亚像素级角点检测
     if (found) {
-        cv::cornerSubPix(grayImage, corners, cv::Size(11, 11), cv::Size(-1, -1),
-            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+        // 使用更宽松的亚像素参数，适合远距离场景
+        cv::cornerSubPix(grayImage, corners, cv::Size(5, 5), cv::Size(-1, -1),
+            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 20, 0.3));
     }
     
     return found;

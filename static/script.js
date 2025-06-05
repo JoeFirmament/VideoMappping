@@ -32,6 +32,7 @@ class VideoStream {
         this.boardHeightInput = document.getElementById('boardHeightInput');
         this.squareSizeInput = document.getElementById('squareSizeInput');
         this.setBoardSizeBtn = document.getElementById('setBoardSizeBtn');
+        this.blurKernelSizeInput = document.getElementById('blurKernelSizeInput');
         this.calibrationErrorDisplay = document.getElementById('calibrationErrorDisplay');
         this.savedImagesCount = document.getElementById('savedImagesCount');
         
@@ -40,6 +41,24 @@ class VideoStream {
         this.autoCaptureIntervalInput = document.getElementById('autoCaptureIntervalInput');
         this.startAutoCalibrationBtn = document.getElementById('startAutoCalibrationBtn');
         this.stopAutoCalibrationBtn = document.getElementById('stopAutoCalibrationBtn');
+        
+        // Countdown display elements
+        this.countdownDisplay = document.getElementById('countdownDisplay');
+        this.remainingTime = document.getElementById('remainingTime');
+        this.nextCaptureTime = document.getElementById('nextCaptureTime');
+        this.captureProgress = document.getElementById('captureProgress');
+        
+        // 倒计时相关变量
+        this.countdownInterval = null;
+        this.countdownStartTime = null;
+        this.countdownDuration = null;
+        this.countdownIntervalMs = null;
+        this.lastCaptureTime = null;
+        
+        // 添加新的分辨率显示元素
+        this.displayResolution = document.getElementById('displayResolution');
+        this.detectionResolution = document.getElementById('detectionResolution');
+        this.performanceMode = document.getElementById('performanceMode');
         
         // Initialize variables
         this.ws = null;
@@ -62,6 +81,11 @@ class VideoStream {
         this.cameraCalibrated = false;
         this.calibrationImages = 0;
         
+        // Auto capture countdown related
+        this.autoCaptureStartTime = null;
+        this.autoCaptureEndTime = null;
+        this.autoCaptureIntervalMs = 500;
+        
         // Media display related
         this.currentBlobUrl = null;
         
@@ -75,6 +99,9 @@ class VideoStream {
         
         this.setupEventListeners();
         this.connect();
+        
+        // 初始化按钮状态 - 确保自动采集按钮在标定模式关闭时被禁用
+        this.updateCameraCalibrationUIWithStates();
         
         // Start FPS counter
         setInterval(() => this.updateFps(), 1000);
@@ -146,6 +173,19 @@ class VideoStream {
         if (this.setBoardSizeBtn) {
             this.setBoardSizeBtn.addEventListener('click', () => {
                 this.setBoardSize();
+            });
+        }
+        
+        // Auto capture related event listeners
+        if (this.startAutoCalibrationBtn) {
+            this.startAutoCalibrationBtn.addEventListener('click', () => {
+                this.startAutoCalibrationCapture();
+            });
+        }
+        
+        if (this.stopAutoCalibrationBtn) {
+            this.stopAutoCalibrationBtn.addEventListener('click', () => {
+                this.stopAutoCalibrationCapture();
             });
         }
     }
@@ -240,6 +280,12 @@ class VideoStream {
                     `${this.calibrationImages} 张` : 
                     `${this.calibrationImages} images`;
                 this.savedImagesCount.textContent = countText;
+                
+                // 添加更新动画
+                this.savedImagesCount.classList.add('updated');
+                setTimeout(() => {
+                    this.savedImagesCount.classList.remove('updated');
+                }, 500);
             }
         }
         
@@ -313,7 +359,7 @@ class VideoStream {
                 this.cameraCalibrationMode = data.calibration_mode;
                 this.cameraCalibrated = data.calibrated;
                 this.calibrationImages = data.image_count;
-                this.updateCameraCalibrationUI();
+                this.updateCameraCalibrationUIWithStates();
                 
                 if (data.error !== undefined) {
                     this.calibrationErrorDisplay.textContent = data.error.toFixed(2) + ' pixels';
@@ -343,6 +389,11 @@ class VideoStream {
                         // 设置自动采集按钮状态
                         this.setButtonState(this.startAutoCalibrationBtn, 'processing');
                         this.stopAutoCalibrationBtn.disabled = false;
+                        
+                        // 如果本地没有启动倒计时，则启动
+                        if (!this.countdownInterval && data.duration && data.interval) {
+                            this.startCountdown(data.duration, data.interval);
+                        }
                     } else {
                         this.updateStatus('error', window.i18n ? 
                             window.i18n.t('auto_capture_failed') : 
@@ -359,6 +410,9 @@ class VideoStream {
                         // 恢复按钮状态
                         this.setButtonState(this.startAutoCalibrationBtn, '');
                         this.stopAutoCalibrationBtn.disabled = true;
+                        
+                        // 停止倒计时
+                        this.stopCountdown();
                     }
                 }
             } else if (data.type === 'auto_capture_completed') {
@@ -374,11 +428,19 @@ class VideoStream {
                 
                 // 更新标定图像计数
                 this.calibrationImages = data.image_count;
-                this.updateCameraCalibrationUI();
+                this.updateCameraCalibrationUIWithStates();
                 
                 // 恢复按钮状态
                 this.setButtonState(this.startAutoCalibrationBtn, '');
                 this.stopAutoCalibrationBtn.disabled = true;
+                
+                // 停止倒计时
+                this.stopCountdown();
+                
+                // 如果在自动采集过程中收到新图像，更新最后采集时间
+                if (this.countdownInterval && data.image_count > this.calibrationImages) {
+                    this.lastCaptureTime = Date.now();
+                }
             }
         } catch (error) {
             console.error('Error processing text message:', error);
@@ -582,8 +644,9 @@ class VideoStream {
         const width = parseInt(this.boardWidthInput.value);
         const height = parseInt(this.boardHeightInput.value);
         const squareSize = parseFloat(this.squareSizeInput.value) / 1000; // Convert to meters
+        const blurKernelSize = parseInt(this.blurKernelSizeInput.value);
         
-        if (isNaN(width) || isNaN(height) || isNaN(squareSize)) {
+        if (isNaN(width) || isNaN(height) || isNaN(squareSize) || isNaN(blurKernelSize)) {
             alert('Please enter valid chessboard parameters!');
             return;
         }
@@ -595,7 +658,8 @@ class VideoStream {
             action: 'set_board_size',
             width: width,
             height: height,
-            square_size: squareSize
+            square_size: squareSize,
+            blur_kernel_size: blurKernelSize
         };
         
         console.log('Sending message:', message);
@@ -656,7 +720,7 @@ class VideoStream {
             this.saveCameraCalibrationBtn.disabled = !this.cameraCalibrated;
         }
         
-        // 更新自动采集按钮状态
+        // 修复自动采集按钮状态 - 这是关键修复
         if (this.startAutoCalibrationBtn) {
             this.startAutoCalibrationBtn.disabled = !this.cameraCalibrationMode;
         }
@@ -684,6 +748,12 @@ class VideoStream {
                 `${this.calibrationImages} 张` : 
                 `${this.calibrationImages} images`;
             this.savedImagesCount.textContent = countText;
+            
+            // 添加更新动画
+            this.savedImagesCount.classList.add('updated');
+            setTimeout(() => {
+                this.savedImagesCount.classList.remove('updated');
+            }, 500);
         }
     }
     
@@ -726,6 +796,15 @@ class VideoStream {
         this.performCameraCalibrationBtn.disabled = !this.cameraCalibrationMode || this.calibrationImages < 10;
         this.saveCameraCalibrationBtn.disabled = !this.cameraCalibrated;
         
+        // 添加缺少的自动采集按钮状态更新
+        if (this.startAutoCalibrationBtn) {
+            this.startAutoCalibrationBtn.disabled = !this.cameraCalibrationMode;
+        }
+        
+        if (this.stopAutoCalibrationBtn) {
+            this.stopAutoCalibrationBtn.disabled = true; // 默认禁用，只有在自动采集开始后才启用
+        }
+        
         // 设置其他按钮状态
         this.setButtonState(this.saveCameraCalibrationBtn, this.cameraCalibrated ? 'active' : '');
         
@@ -743,6 +822,43 @@ class VideoStream {
                 `${this.calibrationImages} 张` : 
                 `${this.calibrationImages} images`;
             this.savedImagesCount.textContent = countText;
+            
+            // 添加更新动画
+            this.savedImagesCount.classList.add('updated');
+            setTimeout(() => {
+                this.savedImagesCount.classList.remove('updated');
+            }, 500);
+        }
+        
+        // 更新分辨率显示
+        this.updateResolutionDisplay();
+    }
+    
+    updateResolutionDisplay() {
+        // 根据标定模式更新性能模式显示
+        if (this.performanceMode) {
+            if (this.cameraCalibrationMode) {
+                this.performanceMode.textContent = window.i18n ? 
+                    window.i18n.t('dual_resolution') || '双分辨率' : '双分辨率';
+                this.performanceMode.className = 'info-value status-dual';
+            } else {
+                this.performanceMode.textContent = window.i18n ? 
+                    window.i18n.t('single_resolution') || '单分辨率' : '单分辨率';
+                this.performanceMode.className = 'info-value';
+            }
+        }
+        
+        // 动态更新显示分辨率（在标定模式下降低到960x540）
+        if (this.displayResolution) {
+            if (this.cameraCalibrationMode) {
+                this.displayResolution.textContent = '960×540';
+                this.displayResolution.classList.add('updated');
+                setTimeout(() => {
+                    this.displayResolution.classList.remove('updated');
+                }, 500);
+            } else {
+                this.displayResolution.textContent = '1920×1080';
+            }
         }
     }
     
@@ -922,6 +1038,9 @@ class VideoStream {
         // 设置处理状态
         this.setButtonState(this.startAutoCalibrationBtn, 'processing');
         
+        // 保存采集参数
+        this.autoCaptureIntervalMs = interval;
+        
         const message = {
             action: 'start_auto_calibration_capture',
             duration: duration,
@@ -937,6 +1056,9 @@ class VideoStream {
                 `Starting auto capture for ${duration}s with ${interval}ms interval`;
             this.lastOperation.textContent = text;
         }
+        
+        // 启动倒计时显示
+        this.startCountdown(duration, interval);
     }
 
     stopAutoCalibrationCapture() {
@@ -958,6 +1080,87 @@ class VideoStream {
                 window.i18n.t('stopping_auto_capture') : 
                 'Stopping auto capture';
             this.lastOperation.textContent = text;
+        }
+        
+        // 停止倒计时
+        this.stopCountdown();
+    }
+    
+    // 启动倒计时功能
+    startCountdown(durationSeconds, intervalMs) {
+        // 设置时间参数
+        this.autoCaptureStartTime = Date.now();
+        this.autoCaptureEndTime = this.autoCaptureStartTime + (durationSeconds * 1000);
+        this.lastCaptureTime = this.autoCaptureStartTime;
+        
+        // 显示倒计时区域
+        if (this.countdownDisplay) {
+            this.countdownDisplay.style.display = 'block';
+        }
+        
+        // 启动倒计时更新
+        this.countdownInterval = setInterval(() => {
+            this.updateCountdown(intervalMs);
+        }, 100); // 每100ms更新一次显示
+        
+        console.log('Countdown started for', durationSeconds, 'seconds');
+    }
+    
+    // 停止倒计时功能
+    stopCountdown() {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        
+        // 隐藏倒计时区域
+        if (this.countdownDisplay) {
+            this.countdownDisplay.style.display = 'none';
+        }
+        
+        console.log('Countdown stopped');
+    }
+    
+    // 更新倒计时显示
+    updateCountdown(intervalMs) {
+        const now = Date.now();
+        
+        // 计算剩余时间
+        const remainingMs = Math.max(0, this.autoCaptureEndTime - now);
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
+        
+        // 计算下次采集倒计时
+        const timeSinceLastCapture = now - this.lastCaptureTime;
+        const nextCaptureMs = Math.max(0, intervalMs - timeSinceLastCapture);
+        const nextCaptureSeconds = Math.ceil(nextCaptureMs / 1000);
+        
+        // 计算进度百分比
+        const totalMs = this.autoCaptureEndTime - this.autoCaptureStartTime;
+        const elapsedMs = now - this.autoCaptureStartTime;
+        const progressPercent = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
+        
+        // 更新显示
+        if (this.remainingTime) {
+            this.remainingTime.textContent = `${remainingSeconds}s`;
+            this.remainingTime.className = 'countdown-value';
+            if (remainingSeconds <= 5) {
+                this.remainingTime.className += ' warning';
+            }
+        }
+        
+        if (this.nextCaptureTime) {
+            this.nextCaptureTime.textContent = `${nextCaptureSeconds}s`;
+            this.nextCaptureTime.className = 'countdown-value';
+        }
+        
+        if (this.captureProgress) {
+            this.captureProgress.textContent = `${Math.round(progressPercent)}%`;
+            this.captureProgress.className = 'countdown-value progress';
+        }
+        
+        // 检查是否结束
+        if (remainingMs <= 0) {
+            this.stopCountdown();
         }
     }
 }

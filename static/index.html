@@ -35,6 +35,17 @@
                 <div>
                     <div class="video-container">
                         <img id="video" class="video-canvas" src="" data-i18n-alt="video_stream">
+                        <div class="video-controls-overlay">
+                            <button id="startBtn" class="btn btn-sm btn-primary" disabled>
+                                <span data-i18n="start">开始</span>
+                            </button>
+                            <button id="stopBtn" class="btn btn-sm btn-danger" disabled>
+                                <span data-i18n="stop">停止</span>
+                            </button>
+                            <button id="fullscreenBtn" class="btn btn-sm btn-secondary">
+                                <span data-i18n="fullscreen">全屏</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="stats">
@@ -51,28 +62,24 @@
                             <span id="latency" class="stat-value">-</span>
                         </div>
                     </div>
-                    
-                    <div class="controls mb-3">
-                        <button id="startBtn" class="btn btn-primary" disabled>
-                            <span data-i18n="start">开始</span>
-                        </button>
-                        <button id="stopBtn" class="btn btn-danger" disabled>
-                            <span data-i18n="stop">停止</span>
-                        </button>
-                        <button id="fullscreenBtn" class="btn btn-secondary">
-                            <span data-i18n="fullscreen">全屏</span>
-                        </button>
-                    </div>
                 </div>
                 
                 <div class="control-panel">
-                    <div class="control-section">
+                    <div class="control-section compact">
                         <h3 class="mb-2" data-i18n="camera_settings">摄像头设置</h3>
-                        <div class="form-group mb-2">
-                            <label class="form-label" data-i18n="resolution_select">分辨率选择</label>
-                            <select id="resolutionSelect" class="form-select">
-                                <option value="640,480">640 × 480</option>
-                            </select>
+                        <div class="resolution-info">
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="display_resolution">显示分辨率:</span>
+                                <span id="displayResolution" class="info-value">960×540</span>
+                            </div>
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="detection_resolution">检测分辨率:</span>
+                                <span id="detectionResolution" class="info-value">1920×1080</span>
+                            </div>
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="performance_mode">性能模式:</span>
+                                <span id="performanceMode" class="info-value status-dual">双分辨率</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -80,67 +87,96 @@
                     
                     <div class="control-section">
                         <h3 class="mb-2" data-i18n="camera_intrinsic_calibration">相机内参标定</h3>
-                        <p class="section-description" data-i18n="camera_calibration_desc">用于消除镜头畸变，提高测量精度</p>
+                        <p class="section-description compact" data-i18n="camera_calibration_desc">用于消除镜头畸变，提高测量精度</p>
                         
-                        <!-- 棋盘格参数设置 -->
-                        <div class="parameter-group mb-3">
-                            <h4 data-i18n="chessboard_parameters">棋盘格参数</h4>
-                            <div class="control-row mt-2">
-                                <div class="form-group">
-                                    <label class="form-label" data-i18n="corner_width">内角点宽度</label>
-                                    <input type="number" id="boardWidthInput" placeholder="8" value="8" class="form-control" />
-                                    <small class="form-hint" data-i18n="corner_width_hint">棋盘格内部角点数量（水平方向）</small>
+                        <!-- 压缩的棋盘格参数设置 -->
+                        <div class="parameter-group compact mb-2">
+                            <div class="parameter-grid">
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="corner_width">角点W</label>
+                                    <input type="number" id="boardWidthInput" value="8" class="form-control compact" />
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label" data-i18n="corner_height">内角点高度</label>
-                                    <input type="number" id="boardHeightInput" placeholder="5" value="5" class="form-control" />
-                                    <small class="form-hint" data-i18n="corner_height_hint">棋盘格内部角点数量（垂直方向）</small>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="corner_height">角点H</label>
+                                    <input type="number" id="boardHeightInput" value="5" class="form-control compact" />
+                                </div>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="square_size">方格(mm)</label>
+                                    <input type="number" id="squareSizeInput" value="30" class="form-control compact" />
+                                </div>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="blur_kernel_size">模糊核</label>
+                                    <select id="blurKernelSizeInput" class="form-control compact">
+                                        <option value="0" data-i18n="blur_none">无</option>
+                                        <option value="3" data-i18n="blur_light">3x3</option>
+                                        <option value="5" selected data-i18n="blur_medium">5x5</option>
+                                        <option value="7" data-i18n="blur_strong">7x7</option>
+                                        <option value="9" data-i18n="blur_extreme">9x9</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="control-row mt-2">
-                                <div class="form-group">
-                                    <label class="form-label" data-i18n="square_size">方格大小 (mm)</label>
-                                    <input type="number" id="squareSizeInput" placeholder="30" value="30" class="form-control" />
-                                    <small class="form-hint" data-i18n="square_size_hint">实际测量的方格边长，单位毫米</small>
-                                </div>
-                                <button id="setBoardSizeBtn" class="btn btn-secondary">
-                                    <span data-i18n="set_parameters">设置参数</span>
-                                </button>
-                            </div>
+                            <button id="setBoardSizeBtn" class="btn btn-secondary btn-sm">
+                                <span data-i18n="set_parameters">设置参数</span>
+                            </button>
                         </div>
                         
-                        <!-- 标定操作按钮 -->
+                        <!-- 重新设计的标定操作按钮 -->
                         <div class="operation-group mb-3">
+                            <!-- 第一行：模式控制 -->
                             <div class="control-row">
                                 <button id="toggleCameraCalibrationBtn" class="btn btn-primary">
                                     <span data-i18n="camera_calibration_mode">相机标定模式</span>
                                 </button>
+                            </div>
+                            
+                            <!-- 第二行：手动采集 -->
+                            <div class="control-row mt-2">
                                 <button id="addCalibrationImageBtn" class="btn btn-success" disabled>
-                                    <span data-i18n="capture_image">采集标定图像</span>
+                                    <span data-i18n="manual_capture_image">手动采集标定图像</span>
                                 </button>
                             </div>
                             
-                            <!-- 自动采集设置 -->
-                            <div class="control-row mt-2">
-                                <div class="form-group">
-                                    <label class="form-label" data-i18n="auto_capture_time">自动采集时间(秒)</label>
-                                    <input type="number" id="autoCaptureTimeInput" placeholder="10" value="10" class="form-control" min="1" max="60" />
+                            <!-- 第三行：自动采集参数设置 -->
+                            <div class="auto-capture-section mt-3">
+                                <h5 data-i18n="auto_capture_settings">自动采集设置</h5>
+                                <div class="control-row mt-2">
+                                    <div class="form-group">
+                                        <label class="form-label" data-i18n="auto_capture_time">自动采集时间(秒)</label>
+                                        <input type="number" id="autoCaptureTimeInput" placeholder="10" value="10" class="form-control" min="1" max="60" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" data-i18n="auto_capture_interval">采集间隔(毫秒)</label>
+                                        <input type="number" id="autoCaptureIntervalInput" placeholder="500" value="500" class="form-control" min="100" max="2000" />
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label" data-i18n="auto_capture_interval">采集间隔(毫秒)</label>
-                                    <input type="number" id="autoCaptureIntervalInput" placeholder="500" value="500" class="form-control" min="100" max="2000" />
+                                <!-- 第四行：自动采集控制和倒计时显示 -->
+                                <div class="control-row mt-2">
+                                    <button id="startAutoCalibrationBtn" class="btn btn-success" disabled>
+                                        <span data-i18n="start_auto_capture">开始自动采集</span>
+                                    </button>
+                                    <button id="stopAutoCalibrationBtn" class="btn btn-danger" disabled>
+                                        <span data-i18n="stop_auto_capture">停止自动采集</span>
+                                    </button>
                                 </div>
-                            </div>
-                            <div class="control-row mt-2">
-                                <button id="startAutoCalibrationBtn" class="btn btn-success" disabled>
-                                    <span data-i18n="start_auto_capture">开始自动采集</span>
-                                </button>
-                                <button id="stopAutoCalibrationBtn" class="btn btn-danger" disabled>
-                                    <span data-i18n="stop_auto_capture">停止自动采集</span>
-                                </button>
+                                <!-- 倒计时显示区域 -->
+                                <div id="countdownDisplay" class="countdown-display" style="display: none;">
+                                    <div class="countdown-item">
+                                        <span class="countdown-label" data-i18n="remaining_time">剩余时间:</span>
+                                        <span id="remainingTime" class="countdown-value">0s</span>
+                                    </div>
+                                    <div class="countdown-item">
+                                        <span class="countdown-label" data-i18n="next_capture_in">下次采集:</span>
+                                        <span id="nextCaptureTime" class="countdown-value">0s</span>
+                                    </div>
+                                    <div class="countdown-item">
+                                        <span class="countdown-label" data-i18n="capture_progress">采集进度:</span>
+                                        <span id="captureProgress" class="countdown-value">0%</span>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div class="control-row mt-2">
+                            <!-- 第五行：标定计算和保存 -->
+                            <div class="control-row mt-3">
                                 <button id="performCameraCalibrationBtn" class="btn btn-success" disabled>
                                     <span data-i18n="perform_calibration">执行标定</span>
                                 </button>

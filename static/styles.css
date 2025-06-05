@@ -371,6 +371,25 @@ body {
     display: block;
 }
 
+/* 视频控制按钮悬浮层 */
+.video-controls-overlay {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+}
+
+.video-controls-overlay .btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    min-width: 60px;
+}
+
 .video-overlay {
     position: absolute;
     top: 16px;
@@ -381,6 +400,78 @@ body {
     border-radius: 2px;
     font-size: 12px;
     font-weight: 600;
+}
+
+/* ===== 自动采集区域样式 ===== */
+.auto-capture-section {
+    background: rgba(248, 249, 250, 0.3);
+    border-radius: 4px;
+    padding: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.auto-capture-section h5 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(73, 80, 87, 0.8);
+}
+
+/* ===== 倒计时显示样式 ===== */
+.countdown-display {
+    background: rgba(0, 123, 255, 0.1);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 10px;
+    animation: pulse-countdown 2s infinite;
+}
+
+@keyframes pulse-countdown {
+    0% { 
+        background-color: rgba(0, 123, 255, 0.1);
+        border-color: rgba(0, 123, 255, 0.2);
+    }
+    50% { 
+        background-color: rgba(0, 123, 255, 0.15);
+        border-color: rgba(0, 123, 255, 0.3);
+    }
+    100% { 
+        background-color: rgba(0, 123, 255, 0.1);
+        border-color: rgba(0, 123, 255, 0.2);
+    }
+}
+
+.countdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.countdown-item:last-child {
+    margin-bottom: 0;
+}
+
+.countdown-label {
+    color: rgba(73, 80, 87, 0.7);
+    font-weight: 500;
+}
+
+.countdown-value {
+    font-weight: 700;
+    color: rgba(0, 123, 255, 0.8);
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 14px;
+}
+
+.countdown-value.progress {
+    color: rgba(40, 167, 69, 0.8);
+}
+
+.countdown-value.warning {
+    color: rgba(255, 193, 7, 0.8);
 }
 
 /* ===== 标定相关样式 ===== */
@@ -822,4 +913,110 @@ input:checked + .slider:before {
 
 .status-group .info-item:last-child {
     margin-bottom: 0;
+}
+
+/* ===== 新增：紧凑样式 ===== */
+.control-section.compact {
+    margin-bottom: 16px;
+}
+
+.parameter-group.compact {
+    margin-bottom: 16px;
+}
+
+.section-description.compact {
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    color: rgba(108, 117, 125, 0.7);
+}
+
+.parameter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.form-group.compact {
+    margin-bottom: 0;
+}
+
+.form-control.compact {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+    height: 32px;
+}
+
+.form-label {
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* ===== 双分辨率显示 ===== */
+.resolution-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(241, 243, 245, 0.5);
+    border-radius: 6px;
+    border: 1px solid rgba(233, 236, 239, 0.8);
+}
+
+.resolution-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.resolution-item .info-label {
+    font-size: 0.75rem;
+    color: rgba(108, 117, 125, 0.8);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.resolution-item .info-value {
+    font-size: 0.9rem;
+    color: rgba(73, 80, 87, 0.9);
+    font-weight: 600;
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.status-dual {
+    color: #28a745 !important;
+    background: rgba(40, 167, 69, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8rem !important;
+}
+
+/* ===== 状态更新动画 ===== */
+.info-value.updated {
+    animation: highlight 0.5s ease;
+}
+
+@keyframes highlight {
+    0% { background-color: rgba(255, 235, 59, 0.3); }
+    100% { background-color: transparent; }
+}
+
+/* ===== 响应式优化 ===== */
+@media (max-width: 768px) {
+    .parameter-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    .resolution-info {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
 }

@@ -19,9 +19,9 @@ int main(int argc, char** argv) {
     VideoStreamer streamer;
     
     // 初始化摄像头 
-    // 这里 -1 表示自动检测使用第一个可用的摄像头设备，640x480 是分辨率，30 是帧率
+    // 这里 -1 表示自动检测使用第一个可用的摄像头设备，1920x1080 是分辨率，30 是帧率
     cout << "Detecting camera devices..." << endl;
-    if (!streamer.initialize(-1, 640, 480, 30)) {
+    if (!streamer.initialize(-1, 1920, 1080, 30)) {
         cerr << "Failed to initialize camera" << endl;
         return -1;
     }
@@ -457,6 +457,7 @@ int main(int argc, char** argv) {
                     // 解析棋盘格参数
                     int width = 8, height = 5; // 默认值
                     float square_size = 0.030f; // 默认值 30mm
+                    int blur_kernel_size = 5; // 默认值 5x5核
                     
                     // 解析width字段
                     size_t width_pos = data.find("\"width\":");
@@ -482,22 +483,39 @@ int main(int argc, char** argv) {
                     size_t size_pos = data.find("\"square_size\":");
                     if (size_pos != std::string::npos) {
                         size_t start = size_pos + 14;
-                        size_t end = data.find("}", start);
+                        size_t end = data.find(",", start);
+                        if (end == std::string::npos) end = data.find("}", start);
                         if (end != std::string::npos) {
                             square_size = std::stof(data.substr(start, end - start));
+                        }
+                    }
+                    
+                    // 解析blur_kernel_size字段
+                    size_t blur_pos = data.find("\"blur_kernel_size\":");
+                    if (blur_pos != std::string::npos) {
+                        size_t start = blur_pos + 19;
+                        size_t end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            blur_kernel_size = std::stoi(data.substr(start, end - start));
                         }
                     }
                     
                     // 设置棋盘格参数
                     streamer.setChessboardSize(width, height);
                     streamer.setSquareSize(square_size);
+                    streamer.setBlurKernelSize(blur_kernel_size);
+                    
+                    std::cout << "Set parameters: " << width << "x" << height 
+                              << ", square_size: " << square_size 
+                              << ", blur_kernel: " << blur_kernel_size << std::endl;
                     
                     // 发送确认消息
                     std::string response = "{\"type\":\"camera_calibration_status\","
                                          "\"board_size_set\":true,"
                                          "\"width\":" + std::to_string(width) + ","
                                          "\"height\":" + std::to_string(height) + ","
-                                         "\"square_size\":" + std::to_string(square_size) + "}";
+                                         "\"square_size\":" + std::to_string(square_size) + ","
+                                         "\"blur_kernel_size\":" + std::to_string(blur_kernel_size) + "}";
                     conn.send_text(response);
                 }
             } catch (const std::exception& e) {
