@@ -27,6 +27,7 @@ public:
     bool setResolution(int width, int height);
     std::pair<int, int> getCurrentResolution();
     void handleWebSocket(const crow::request& req, Connection conn);
+    void removeWebSocketConnection(Connection conn);
     
     // 单应性矩阵标定相关方法
     bool addCalibrationPoint(const cv::Point2f& imagePoint, const cv::Point2f& groundPoint);
@@ -52,19 +53,22 @@ public:
     bool loadMarkerCoordinates(const std::string& filename = "");
 
     // 相机标定相关方法
+    void setCameraCalibrationMode(bool mode);
     bool isCameraCalibrationMode() const;
-    bool toggleCameraCalibrationMode();
-    bool addCalibrationImage();  // 添加当前帧作为标定图像
-    bool performCameraCalibration();  // 执行相机标定
-    bool saveCameraCalibration(const std::string& filename = "");
-    bool loadCameraCalibration(const std::string& filename = "");
-    void setChessboardSize(int width, int height);
-    void setSquareSize(float size);
-    void setBlurKernelSize(int size);  // 设置高斯模糊核大小
-    int getBlurKernelSize() const;     // 获取高斯模糊核大小
-    double getCalibrationError() const;
-    bool isCameraCalibrated() const;
-    size_t getCalibrationImageCount() const; // 新增方法
+    bool addCameraCalibrationImage();
+    bool calibrateCamera();
+    bool saveCameraCalibrationData(const std::string& filename);
+    bool loadCameraCalibrationData(const std::string& filename);
+    cv::Mat undistortImage(const cv::Mat& image);
+    
+    // 获取标定结果
+    cv::Mat getCameraMatrix() const;
+    cv::Mat getDistCoeffs() const;
+    
+    // 新增：相机标定会话管理
+    void startNewCameraCalibrationSession();  // 开始新的标定会话
+    void clearCurrentCameraCalibrationSession(); // 清除当前会话
+    size_t getCurrentSessionImageCount() const;   // 获取当前会话图像数
 
     // 自动采集标定图像
     bool startAutoCalibrationCapture(int durationSeconds = 10, int intervalMs = 500);
@@ -76,6 +80,20 @@ public:
     void setDetectionResolution(int width, int height);
     cv::Mat getDisplayFrame();
     cv::Mat getDetectionFrame();
+
+    // 棋盘格和质量设置
+    void setChessboardSize(int width, int height);
+    void setSquareSize(float size);
+    void setBlurKernelSize(int size);
+    int getBlurKernelSize() const;
+    void setQualityCheckLevel(int level);
+    double getCalibrationError() const;
+    bool isCameraCalibrated() const;
+    size_t getCalibrationImageCount() const;
+    
+    // 相机校正控制
+    void setCameraCorrectionEnabled(bool enabled);
+    bool isCameraCorrectionEnabled() const;
 
 private:
     void captureThread(); // 添加线程函数声明
@@ -115,4 +133,7 @@ private:
     // 双分辨率支持
     int displayWidth_, displayHeight_;
     int detectionWidth_, detectionHeight_;
+    
+    // 相机校正控制
+    std::atomic<bool> cameraCorrectionEnabled_{false};
 };

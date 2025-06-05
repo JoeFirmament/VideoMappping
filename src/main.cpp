@@ -33,41 +33,21 @@ int main(int argc, char** argv) {
     std::vector<crow::websocket::connection*> ws_connections;
     std::mutex ws_mutex;
     
-    // 创建视频帧广播线程
-    std::thread broadcast_thread([&]() {
-        while (true) {
-            // 获取视频帧
-            cv::Mat frame;
-            if (streamer.getFrame(frame)) {
-                // 编码为JPEG
-                std::vector<uchar> buffer;
-                std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 80};
-                cv::imencode(".jpg", frame, buffer, params);
-                
-                // 广播给所有连接
-                std::string binary_data(buffer.begin(), buffer.end());
-                
-                std::lock_guard<std::mutex> lock(ws_mutex);
-                for (auto conn : ws_connections) {
-                    if (conn) {
-                        conn->send_binary(binary_data);
-                    }
-                }
-            }
-            
-            // 控制帧率
-            std::this_thread::sleep_for(std::chrono::milliseconds(33)); // ~30fps
-        }
-    });
-    broadcast_thread.detach();
+    // 设置固定的显示分辨率以避免闪烁
+    streamer.setDisplayResolution(960, 540);  // 固定为原始分辨率的一半
     
     // WebSocket endpoint
     CROW_ROUTE(app, "/ws")
     .websocket(&app)
-    .onopen([&ws_connections, &ws_mutex](crow::websocket::connection& conn) {
+    .onopen([&ws_connections, &ws_mutex, &streamer](crow::websocket::connection& conn) {
         std::cout << "New WebSocket connection" << std::endl;
-        std::lock_guard<std::mutex> lock(ws_mutex);
-        ws_connections.push_back(&conn);
+        {
+            std::lock_guard<std::mutex> lock(ws_mutex);
+            ws_connections.push_back(&conn);
+        }
+        
+        // 同时通知VideoStreamer有新连接
+        streamer.handleWebSocket(crow::request{}, &conn);
     })
     .onmessage([&streamer](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
         // 处理来自客户端的消息
@@ -356,29 +336,33 @@ int main(int argc, char** argv) {
                                 + std::to_string(groundPoint.y) + "}");
                 } else if (action == "toggle_camera_calibration_mode") {
                     // 切换相机标定模式
-                    bool mode = streamer.toggleCameraCalibrationMode();
+                    bool currentMode = streamer.isCameraCalibrationMode();
+                    bool newMode = !currentMode;
+                    streamer.setCameraCalibrationMode(newMode);
                     
                     // 发送状态更新
                     std::string response = "{\"type\":\"camera_calibration_status\","
-                                         "\"calibration_mode\":" + std::string(mode ? "true" : "false") + ","
+                                         "\"calibration_mode\":" + std::string(newMode ? "true" : "false") + ","
                                          "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + "}";
                     conn.send_text(response);
                     
                 } else if (action == "add_calibration_image") {
                     // 添加标定图像
-                    bool success = streamer.addCalibrationImage();
+                    bool success = streamer.addCameraCalibrationImage();
                     
                     // 发送状态更新 - 包含完整的状态信息
                     std::string response = "{\"type\":\"camera_calibration_status\","
                                          "\"success\":" + std::string(success ? "true" : "false") + ","
                                          "\"calibration_mode\":" + std::string(streamer.isCameraCalibrationMode() ? "true" : "false") + ","
                                          "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + ","
-                                         "\"image_count\":" + std::to_string(streamer.getCalibrationImageCount()) + "}";
+                                         "\"image_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"current_session_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"saved_count\":" + std::to_string(streamer.getCalibrationImageCount()) + "}";
                     conn.send_text(response);
                     
                 } else if (action == "perform_camera_calibration") {
                     // 执行相机标定
-                    bool success = streamer.performCameraCalibration();
+                    bool success = streamer.calibrateCamera();
                     double error = streamer.getCalibrationError();
                     
                     // 发送状态更新
@@ -388,13 +372,230 @@ int main(int argc, char** argv) {
                                          "\"error\":" + std::to_string(error) + "}";
                     conn.send_text(response);
                     
+                } else if (action == "load_camera_calibration") {
+                    // 加载相机标定数据
+                    std::string filename = "";
+                    
+                    // 解析文件名（可选）
+                    size_t filename_pos = data.find("\"filename\":");
+                    if (filename_pos != std::string::npos) {
+                        size_t start = data.find("\"", filename_pos + 11);
+                        if (start != std::string::npos) {
+                            size_t end = data.find("\"", start + 1);
+                            if (end != std::string::npos) {
+                                filename = data.substr(start + 1, end - start - 1);
+                            }
+                        }
+                    }
+                    
+                    bool success = streamer.loadCameraCalibrationData(filename);
+                    
+                    if (success) {
+                        // 获取加载的标定信息
+                        cv::Mat cameraMatrix = streamer.getCameraMatrix();
+                        cv::Mat distCoeffs = streamer.getDistCoeffs();
+                        double error = streamer.getCalibrationError();
+                        
+                        // 构造详细的响应
+                        std::stringstream response;
+                        response << "{\"type\":\"camera_calibration_loaded\",";
+                        response << "\"success\":true,";
+                        response << "\"error\":" << std::fixed << std::setprecision(4) << error << ",";
+                        
+                        // 相机矩阵
+                        if (!cameraMatrix.empty()) {
+                            response << "\"camera_matrix\":[";
+                            for (int i = 0; i < cameraMatrix.rows; i++) {
+                                for (int j = 0; j < cameraMatrix.cols; j++) {
+                                    if (i > 0 || j > 0) response << ",";
+                                    response << std::fixed << std::setprecision(6) << cameraMatrix.at<double>(i, j);
+                                }
+                            }
+                            response << "],";
+                        }
+                        
+                        // 畸变系数
+                        if (!distCoeffs.empty()) {
+                            std::cout << "Distortion coefficients debug:" << std::endl;
+                            std::cout << "  Matrix size: " << distCoeffs.rows << "x" << distCoeffs.cols << std::endl;
+                            std::cout << "  Type: " << distCoeffs.type() << std::endl;
+                            std::cout << "  Data: " << distCoeffs << std::endl;
+                            
+                            response << "\"distortion_coeffs\":[";
+                            int totalElements = distCoeffs.rows * distCoeffs.cols;
+                            for (int i = 0; i < totalElements; i++) {
+                                if (i > 0) response << ",";
+                                if (distCoeffs.rows == 1) {
+                                    // 如果是行向量 (1xN)
+                                    response << std::fixed << std::setprecision(6) << distCoeffs.at<double>(0, i);
+                                } else {
+                                    // 如果是列向量 (Nx1)
+                                    response << std::fixed << std::setprecision(6) << distCoeffs.at<double>(i, 0);
+                                }
+                            }
+                            response << "],";
+                        }
+                        
+                        // 质量评估
+                        std::string quality = "UNKNOWN";
+                        if (error < 1.0) quality = "EXCELLENT";
+                        else if (error < 2.0) quality = "GOOD";
+                        else quality = "NEEDS_IMPROVEMENT";
+                        
+                        response << "\"quality\":\"" << quality << "\",";
+                        response << "\"filepath\":\"" << (filename.empty() ? "/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml" : filename) << "\"";
+                        response << "}";
+                        
+                        conn.send_text(response.str());
+                    } else {
+                        std::string response = "{\"type\":\"camera_calibration_loaded\","
+                                             "\"success\":false,"
+                                             "\"error\":\"Failed to load calibration data\"}";
+                        conn.send_text(response);
+                    }
+                    
                 } else if (action == "save_camera_calibration") {
                     // 保存标定结果
-                    bool success = streamer.saveCameraCalibration();
+                    bool success = streamer.saveCameraCalibrationData("");
                     
-                    // 发送状态更新
+                    if (success) {
+                        // 获取详细的标定信息
+                        cv::Mat cameraMatrix = streamer.getCameraMatrix();
+                        cv::Mat distCoeffs = streamer.getDistCoeffs();
+                        double error = streamer.getCalibrationError();
+                        size_t imageCount = streamer.getCalibrationImageCount();
+                        
+                        // 构造详细的响应
+                        std::stringstream response;
+                        response << "{\"type\":\"camera_calibration_saved\",";
+                        response << "\"success\":true,";
+                        response << "\"error\":" << std::fixed << std::setprecision(4) << error << ",";
+                        response << "\"image_count\":" << imageCount << ",";
+                        
+                        // 相机矩阵
+                        if (!cameraMatrix.empty()) {
+                            response << "\"camera_matrix\":[";
+                            for (int i = 0; i < cameraMatrix.rows; i++) {
+                                for (int j = 0; j < cameraMatrix.cols; j++) {
+                                    if (i > 0 || j > 0) response << ",";
+                                    response << std::fixed << std::setprecision(6) << cameraMatrix.at<double>(i, j);
+                                }
+                            }
+                            response << "],";
+                        }
+                        
+                        // 畸变系数
+                        if (!distCoeffs.empty()) {
+                            std::cout << "Distortion coefficients debug:" << std::endl;
+                            std::cout << "  Matrix size: " << distCoeffs.rows << "x" << distCoeffs.cols << std::endl;
+                            std::cout << "  Type: " << distCoeffs.type() << std::endl;
+                            std::cout << "  Data: " << distCoeffs << std::endl;
+                            
+                            response << "\"distortion_coeffs\":[";
+                            int totalElements = distCoeffs.rows * distCoeffs.cols;
+                            for (int i = 0; i < totalElements; i++) {
+                                if (i > 0) response << ",";
+                                if (distCoeffs.rows == 1) {
+                                    // 如果是行向量 (1xN)
+                                    response << std::fixed << std::setprecision(6) << distCoeffs.at<double>(0, i);
+                                } else {
+                                    // 如果是列向量 (Nx1)
+                                    response << std::fixed << std::setprecision(6) << distCoeffs.at<double>(i, 0);
+                                }
+                            }
+                            response << "],";
+                        }
+                        
+                        // 质量评估
+                        std::string quality = "UNKNOWN";
+                        if (error < 1.0) quality = "EXCELLENT";
+                        else if (error < 2.0) quality = "GOOD";
+                        else quality = "NEEDS_IMPROVEMENT";
+                        
+                        response << "\"quality\":\"" << quality << "\",";
+                        response << "\"filepath\":\"/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml\"";
+                        response << "}";
+                        
+                        conn.send_text(response.str());
+                    } else {
+                        std::string response = "{\"type\":\"camera_calibration_saved\","
+                                             "\"success\":false,"
+                                             "\"error\":\"Failed to save calibration data\"}";
+                        conn.send_text(response);
+                    }
+                    
+                } else if (action == "get_calibration_status") {
+                    // 返回当前标定状态
                     std::string response = "{\"type\":\"camera_calibration_status\","
-                                         "\"save_success\":" + std::string(success ? "true" : "false") + "}";
+                                         "\"calibration_mode\":" + std::string(streamer.isCameraCalibrationMode() ? "true" : "false") + ","
+                                         "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + ","
+                                         "\"image_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"current_session_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"error\":" + std::to_string(streamer.getCalibrationError()) + ","
+                                         "\"status_refresh\": true}";
+                    conn.send_text(response);
+                    
+                } else if (action == "toggle_camera_correction") {
+                    // 切换相机校正状态
+                    bool enabled = false;
+                    
+                    // 解析enabled字段
+                    size_t enabled_pos = data.find("\"enabled\":");
+                    if (enabled_pos != std::string::npos) {
+                        size_t value_start = enabled_pos + 10;
+                        if (data.substr(value_start, 4) == "true") {
+                            enabled = true;
+                        }
+                    }
+                    
+                    std::cout << "📸 [CAMERA CORRECTION] Toggling to: " << (enabled ? "enabled" : "disabled") << std::endl;
+                    
+                    // 检查是否有可用的标定数据
+                    bool hasCalibration = streamer.isCameraCalibrated();
+                    
+                    if (enabled && !hasCalibration) {
+                        // 如果要启用校正但没有标定数据
+                        std::string response = "{\"type\":\"camera_correction_toggled\","
+                                             "\"success\":false,"
+                                             "\"enabled\":false,"
+                                             "\"error\":\"No calibration data available. Please load or perform camera calibration first.\"}";
+                        conn.send_text(response);
+                    } else {
+                        // 设置校正状态
+                        streamer.setCameraCorrectionEnabled(enabled);
+                        
+                        std::string response = "{\"type\":\"camera_correction_toggled\","
+                                             "\"success\":true,"
+                                             "\"enabled\":" + std::string(enabled ? "true" : "false") + "}";
+                        conn.send_text(response);
+                        
+                        std::cout << "✅ [CAMERA CORRECTION] Successfully " << (enabled ? "enabled" : "disabled") << std::endl;
+                    }
+                    
+                } else if (action == "start_new_calibration_session") {
+                    // 开始新的标定会话
+                    streamer.startNewCameraCalibrationSession();
+                    
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"calibration_mode\":" + std::string(streamer.isCameraCalibrationMode() ? "true" : "false") + ","
+                                         "\"calibrated\":" + std::string(streamer.isCameraCalibrated() ? "true" : "false") + ","
+                                         "\"image_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"current_session_count\":" + std::to_string(streamer.getCurrentSessionImageCount()) + ","
+                                         "\"error\":" + std::to_string(streamer.getCalibrationError()) + ","
+                                         "\"session_message\":\"New calibration session started\"}";
+                    conn.send_text(response);
+                    
+                } else if (action == "clear_current_session") {
+                    // 清除当前会话
+                    streamer.clearCurrentCameraCalibrationSession();
+                    
+                    std::string response = "{\"type\":\"camera_calibration_status\","
+                                         "\"calibration_mode\":" + std::string(streamer.isCameraCalibrationMode() ? "true" : "false") + ","
+                                         "\"calibrated\":false,"
+                                         "\"image_count\":0,"
+                                         "\"current_session_count\":0,"
+                                         "\"error\":0.0,"
+                                         "\"session_message\":\"Current session cleared\"}";
                     conn.send_text(response);
                     
                 } else if (action == "start_auto_calibration_capture") {
@@ -434,12 +635,15 @@ int main(int argc, char** argv) {
                         }
                     }
                     
+                    // 自动采集前先开始新的标定会话
+                    streamer.startNewCameraCalibrationSession();
+                    
                     // 启动自动采集
                     bool success = streamer.startAutoCalibrationCapture(duration, interval);
                     
                     // 发送状态更新
-                    std::string response = "{\"type\":\"auto_capture_status\","
-                                         "\"started\":" + std::string(success ? "true" : "false") + ","
+                    std::string response = "{\"type\":\"auto_capture_started\","
+                                         "\"success\":" + std::string(success ? "true" : "false") + ","
                                          "\"duration\":" + std::to_string(duration) + ","
                                          "\"interval\":" + std::to_string(interval) + "}";
                     conn.send_text(response);
@@ -500,14 +704,28 @@ int main(int argc, char** argv) {
                         }
                     }
                     
+                    // 解析quality_check_level字段
+                    int quality_check_level = 1; // 默认为平衡模式
+                    size_t quality_pos = data.find("\"quality_check_level\":");
+                    if (quality_pos != std::string::npos) {
+                        size_t start = quality_pos + 22;
+                        size_t end = data.find("}", start);
+                        if (end == std::string::npos) end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            quality_check_level = std::stoi(data.substr(start, end - start));
+                        }
+                    }
+                    
                     // 设置棋盘格参数
                     streamer.setChessboardSize(width, height);
                     streamer.setSquareSize(square_size);
                     streamer.setBlurKernelSize(blur_kernel_size);
+                    streamer.setQualityCheckLevel(quality_check_level);
                     
                     std::cout << "Set parameters: " << width << "x" << height 
                               << ", square_size: " << square_size 
-                              << ", blur_kernel: " << blur_kernel_size << std::endl;
+                              << ", blur_kernel: " << blur_kernel_size 
+                              << ", quality_level: " << quality_check_level << std::endl;
                     
                     // 发送确认消息
                     std::string response = "{\"type\":\"camera_calibration_status\","
@@ -523,12 +741,17 @@ int main(int argc, char** argv) {
             }
         }
     })
-    .onclose([&ws_connections, &ws_mutex](crow::websocket::connection& conn, const std::string& reason, uint16_t code) {
+    .onclose([&ws_connections, &ws_mutex, &streamer](crow::websocket::connection& conn, const std::string& reason, uint16_t code) {
         std::cout << "WebSocket connection closed: " << reason << ", code: " << code << std::endl;
-        std::lock_guard<std::mutex> lock(ws_mutex);
-        ws_connections.erase(
-            std::remove(ws_connections.begin(), ws_connections.end(), &conn),
-            ws_connections.end());
+        {
+            std::lock_guard<std::mutex> lock(ws_mutex);
+            ws_connections.erase(
+                std::remove(ws_connections.begin(), ws_connections.end(), &conn),
+                ws_connections.end());
+        }
+        
+        // 同时通知VideoStreamer连接已关闭
+        streamer.removeWebSocketConnection(&conn);
     });
 
     // 添加一个测试JavaScript路由

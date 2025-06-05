@@ -9,7 +9,7 @@ class I18n {
                 subtitle: '实时视频流采集与坐标转换标定',
                 
                 // 视频监控
-                video_monitoring: '视频监控',
+                video_monitoring: '视频流',
                 status_connecting: '状态: 正在连接服务器...',
                 video_stream: '视频流',
                 
@@ -35,7 +35,14 @@ class I18n {
                 manual_capture_image: '手动采集标定图像',
                 capture_image_hint: '点击按钮从当前视频帧采集标定图像',
                 perform_calibration: '执行标定',
-                save_calibration: '保存标定结果',
+                save_calibration: '保存标定',
+                load_calibration: '加载标定',
+                enable_camera_correction: '启用相机校正',
+                correction_active: '校正已激活',
+                correction_inactive: '校正未激活',
+                correction_switching: '状态切换中...',
+                correction_enabled: '相机校正已启用',
+                correction_disabled: '相机校正已禁用',
                 
                 // 棋盘格参数
                 chessboard_parameters: '棋盘格参数',
@@ -110,7 +117,7 @@ class I18n {
                 calibration_successful: '标定成功，单应性矩阵已更新',
                 current_image_count: '已采集图像数量',
                 pixels: '像素',
-                auto_capture_started: '自动采集已开始，持续{{duration}}秒，间隔{{interval}}毫秒',
+                auto_capture_started: '自动采集已开始',
                 auto_capture_failed: '启动自动采集失败',
                 auto_capture_stopped: '自动采集已停止',
                 auto_capture_completed: '自动采集完成：成功{{success}}张，共尝试{{total}}次',
@@ -131,14 +138,26 @@ class I18n {
                 blur_light: "3x3 (轻微)",
                 blur_medium: "5x5 (中等)",
                 blur_strong: "7x7 (强)",
-                blur_extreme: "9x9 (极强)",
+                blur_extreme: "9x9",
                 
                 // 分辨率和性能相关
                 display_resolution: "显示分辨率",
                 detection_resolution: "检测分辨率",
                 performance_mode: "性能模式",
                 dual_resolution: "双分辨率",
-                single_resolution: "单分辨率"
+                single_resolution: "单分辨率",
+                
+                // 标定流程
+                calibration_flow: "流程: 1.设置参数 → 2.进入标定模式 → 3.采集图片 → 4.执行标定 → 5.保存结果",
+                auto_capture_image_added: "已采集 {{count}} 张图片",
+                
+                // 质量检测设置
+                quality_check_level: "质量检测级别",
+                strict_quality: "严格 (高质量)",
+                balanced_quality: "平衡 (推荐)",
+                permissive_quality: "宽松 (困难环境)",
+                
+
             },
             en: {
                 // 页面标题
@@ -146,7 +165,7 @@ class I18n {
                 subtitle: 'Real-time Video Stream Capture and Coordinate Transformation Calibration',
                 
                 // 视频监控
-                video_monitoring: 'Video Monitoring',
+                video_monitoring: 'Video Stream',
                 status_connecting: 'Status: Connecting to server...',
                 video_stream: 'Video Stream',
                 
@@ -173,6 +192,13 @@ class I18n {
                 capture_image_hint: 'Click the button to capture a calibration image from the current video frame',
                 perform_calibration: 'Perform Calibration',
                 save_calibration: 'Save Calibration',
+                load_calibration: 'Load Calibration',
+                enable_camera_correction: 'Enable Camera Correction',
+                correction_active: 'Correction Active',
+                correction_inactive: 'Correction Inactive',
+                correction_switching: 'Switching Status...',
+                correction_enabled: 'Camera correction enabled',
+                correction_disabled: 'Camera correction disabled',
                 
                 // 棋盘格参数
                 chessboard_parameters: 'Chessboard Parameters',
@@ -247,7 +273,7 @@ class I18n {
                 calibration_successful: 'Calibration successful, homography matrix updated',
                 current_image_count: 'Current image count',
                 pixels: 'pixels',
-                auto_capture_started: 'Auto capture started for {{duration}}s with {{interval}}ms interval',
+                auto_capture_started: 'Auto capture started',
                 auto_capture_failed: 'Failed to start auto capture',
                 auto_capture_stopped: 'Auto capture stopped',
                 auto_capture_completed: 'Auto capture completed: {{success}} successful out of {{total}} attempts',
@@ -268,14 +294,29 @@ class I18n {
                 blur_light: "3x3 (Light)",
                 blur_medium: "5x5 (Medium)",
                 blur_strong: "7x7 (Strong)",
-                blur_extreme: "9x9 (Extreme)",
+                blur_extreme: "9x9",
                 
                 // 分辨率和性能相关
                 display_resolution: "Display Resolution",
                 detection_resolution: "Detection Resolution",
                 performance_mode: "Performance Mode",
                 dual_resolution: "Dual Resolution",
-                single_resolution: "Single Resolution"
+                single_resolution: "Single Resolution",
+                
+                // 标定流程
+                calibration_flow: "流程: 1.设置参数 → 2.进入标定模式 → 3.采集图片 → 4.执行标定 → 5.保存结果",
+                auto_capture_image_added: "已采集 {{count}} 张图片",
+                
+                // 质量检测设置
+                quality_check_level: "Quality Check Level",
+                strict_quality: "Strict (High Quality)",
+                balanced_quality: "Balanced (Recommended)",
+                permissive_quality: "Permissive (Difficult Environment)",
+                
+                // 会话管理
+                start_new_session: "Start New Session",
+                clear_current_session: "Clear Current Session",
+                current_session_images: "Current Session Images",
             }
         };
         

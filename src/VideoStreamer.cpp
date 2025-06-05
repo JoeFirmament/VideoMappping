@@ -300,13 +300,20 @@ void VideoStreamer::handleWebSocket(const crow::request& req, Connection conn) {
     {
         std::lock_guard<std::mutex> lock(conn_mutex_);
         connections_.insert(conn);
+        std::cout << "WebSocket connection added to VideoStreamer, total connections: " << connections_.size() << std::endl;
     }
     
     // 发送摄像头信息给客户端
     sendCameraInfo(conn);
-    
-    // 注意：在实际应用中，我们需要在WebSocket连接关闭时从集合中移除连接
-    // 但由于Crow的API限制，我们需要在main.cpp中处理这个逻辑
+}
+
+void VideoStreamer::removeWebSocketConnection(Connection conn) {
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+    auto it = connections_.find(conn);
+    if (it != connections_.end()) {
+        connections_.erase(it);
+        std::cout << "WebSocket connection removed from VideoStreamer, remaining connections: " << connections_.size() << std::endl;
+    }
 }
 
 void VideoStreamer::sendCameraInfo(Connection conn) {
@@ -618,6 +625,18 @@ void VideoStreamer::broadcastFrame() {
         detectArUcoMarkers(processedFrame);
     }
     
+    // 在编码前进一步验证帧的有效性
+    if (processedFrame.type() != CV_8UC3 && processedFrame.type() != CV_8UC1) {
+        std::cerr << "Warning: Invalid frame type for JPEG encoding: " << processedFrame.type() << std::endl;
+        return;
+    }
+    
+    // 验证帧是否连续
+    if (!processedFrame.isContinuous()) {
+        // 如果不连续，创建一个连续的副本
+        processedFrame = processedFrame.clone();
+    }
+    
     // 将帧编码为JPEG，使用更高质量参数和错误检查
     std::vector<uchar> buf;
     std::vector<int> encode_params = {
@@ -625,7 +644,16 @@ void VideoStreamer::broadcastFrame() {
         cv::IMWRITE_JPEG_OPTIMIZE, 1   // 启用JPEG优化
     };
     
-    bool encode_success = cv::imencode(".jpg", processedFrame, buf, encode_params);
+    bool encode_success = false;
+    try {
+        encode_success = cv::imencode(".jpg", processedFrame, buf, encode_params);
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV error in JPEG encoding: " << e.what() << std::endl;
+        return;
+    } catch (const std::exception& e) {
+        std::cerr << "Error in JPEG encoding: " << e.what() << std::endl;
+        return;
+    }
     
     // 检查编码是否成功
     if (!encode_success || buf.empty()) {
@@ -706,13 +734,24 @@ void VideoStreamer::captureThread() {
             // 创建处理帧的副本，避免修改原始帧
             cv::Mat processedFrame = frame.clone();
             
-            // 如果已经完成相机标定，则进行图像校正
-            if (isCameraCalibrated()) {
+            // 如果已经完成相机标定且启用了校正，则进行图像校正
+            if (isCameraCalibrated() && cameraCorrectionEnabled_) {
                 try {
-                    processedFrame = cameraCalibrator_.undistortImage(processedFrame);
+                    cv::Mat undistortedFrame = cameraCalibrator_.undistortImage(processedFrame);
+                    // 验证去畸变结果是否有效
+                    if (!undistortedFrame.empty() && 
+                        undistortedFrame.cols == processedFrame.cols && 
+                        undistortedFrame.rows == processedFrame.rows) {
+                        processedFrame = undistortedFrame;
+                    } else {
+                        cerr << "Warning: Undistortion returned invalid result, using original frame" << endl;
+                    }
+                } catch (const cv::Exception& e) {
+                    cerr << "OpenCV error in undistortion: " << e.what() << endl;
+                    // 继续使用原始帧，不进行去畸变
                 } catch (const std::exception& e) {
                     cerr << "Error in undistortion: " << e.what() << endl;
-                    processedFrame = frame.clone(); // 回退到原始帧
+                    // 继续使用原始帧，不进行去畸变
                 }
             }
             
@@ -786,12 +825,11 @@ bool VideoStreamer::isCameraCalibrationMode() const {
     return cameraCalibrationMode_;
 }
 
-bool VideoStreamer::toggleCameraCalibrationMode() {
-    cameraCalibrationMode_ = !cameraCalibrationMode_;
-    return cameraCalibrationMode_;
+void VideoStreamer::setCameraCalibrationMode(bool mode) {
+    cameraCalibrationMode_ = mode;
 }
 
-bool VideoStreamer::addCalibrationImage() {
+bool VideoStreamer::addCameraCalibrationImage() {
     // 使用高分辨率检测帧进行标定
     cv::Mat detectionFrame = getDetectionFrame();
     
@@ -803,18 +841,34 @@ bool VideoStreamer::addCalibrationImage() {
     return cameraCalibrator_.addCalibrationImage(detectionFrame);
 }
 
-bool VideoStreamer::performCameraCalibration() {
+bool VideoStreamer::calibrateCamera() {
     return cameraCalibrator_.calibrate();
 }
 
-bool VideoStreamer::saveCameraCalibration(const std::string& filename) {
+bool VideoStreamer::saveCameraCalibrationData(const std::string& filename) {
     std::string filepath = filename.empty() ? cameraCalibrationFilePath_ : filename;
     return cameraCalibrator_.saveCalibrationData(filepath);
 }
 
-bool VideoStreamer::loadCameraCalibration(const std::string& filename) {
+bool VideoStreamer::loadCameraCalibrationData(const std::string& filename) {
     std::string filepath = filename.empty() ? cameraCalibrationFilePath_ : filename;
     return cameraCalibrator_.loadCalibrationData(filepath);
+}
+
+cv::Mat VideoStreamer::getCameraMatrix() const {
+    return cameraCalibrator_.getCameraMatrix();
+}
+
+cv::Mat VideoStreamer::getDistCoeffs() const {
+    return cameraCalibrator_.getDistCoeffs();
+}
+
+double VideoStreamer::getCalibrationError() const {
+    return cameraCalibrator_.getCalibrationError();
+}
+
+size_t VideoStreamer::getCalibrationImageCount() const {
+    return cameraCalibrator_.getImageCount();
 }
 
 void VideoStreamer::setChessboardSize(int width, int height) {
@@ -829,20 +883,68 @@ void VideoStreamer::setBlurKernelSize(int size) {
     cameraCalibrator_.setBlurKernelSize(size);
 }
 
-int VideoStreamer::getBlurKernelSize() const {
-    return cameraCalibrator_.getBlurKernelSize();
+void VideoStreamer::setQualityCheckLevel(int level) {
+    CameraCalibrator::QualityCheckLevel qualityLevel;
+    switch (level) {
+        case 0: qualityLevel = CameraCalibrator::STRICT; break;
+        case 1: qualityLevel = CameraCalibrator::BALANCED; break;
+        case 2: qualityLevel = CameraCalibrator::PERMISSIVE; break;
+        default: qualityLevel = CameraCalibrator::BALANCED; break;
+    }
+    cameraCalibrator_.setQualityCheckLevel(qualityLevel);
 }
 
-double VideoStreamer::getCalibrationError() const {
-    return cameraCalibrator_.getCalibrationError();
+int VideoStreamer::getBlurKernelSize() const {
+    return cameraCalibrator_.getBlurKernelSize();
 }
 
 bool VideoStreamer::isCameraCalibrated() const {
     return cameraCalibrator_.isCalibrated();
 }
 
-size_t VideoStreamer::getCalibrationImageCount() const {
-    return cameraCalibrator_.getImageCount();
+// 新增：相机标定会话管理方法实现
+void VideoStreamer::startNewCameraCalibrationSession() {
+    std::cout << "VideoStreamer: Starting new camera calibration session" << std::endl;
+    cameraCalibrator_.startNewCalibrationSession();
+    
+    // 发送会话状态更新到客户端
+    std::string response = "{\"type\":\"camera_calibration_session_started\","
+                          "\"message\":\"New calibration session started\","
+                          "\"image_count\":0}";
+    
+    // 广播到所有连接的客户端
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+    for (auto& conn : connections_) {
+        try {
+            conn->send_text(response);
+        } catch (const std::exception& e) {
+            std::cerr << "Error sending session start notification: " << e.what() << std::endl;
+        }
+    }
+}
+
+void VideoStreamer::clearCurrentCameraCalibrationSession() {
+    std::cout << "VideoStreamer: Clearing current camera calibration session" << std::endl;
+    cameraCalibrator_.clearCurrentSession();
+    
+    // 发送会话清除通知到客户端
+    std::string response = "{\"type\":\"camera_calibration_session_cleared\","
+                          "\"message\":\"Current session cleared\","
+                          "\"image_count\":0}";
+    
+    // 广播到所有连接的客户端
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+    for (auto& conn : connections_) {
+        try {
+            conn->send_text(response);
+        } catch (const std::exception& e) {
+            std::cerr << "Error sending session clear notification: " << e.what() << std::endl;
+        }
+    }
+}
+
+size_t VideoStreamer::getCurrentSessionImageCount() const {
+    return cameraCalibrator_.getCurrentSessionImageCount();
 }
 
 bool VideoStreamer::startAutoCalibrationCapture(int durationSeconds, int intervalMs) {
@@ -892,7 +994,9 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
     int successCount = 0;
     int attemptCount = 0;
     
-    std::cout << "Auto calibration capture thread started" << std::endl;
+    std::cout << "=== AUTO CALIBRATION CAPTURE THREAD STARTED ===" << std::endl;
+    std::cout << "Duration: " << durationSeconds << " seconds, Interval: " << intervalMs << " ms" << std::endl;
+    std::cout << "Initial image count: " << cameraCalibrator_.getCurrentSessionImageCount() << std::endl;
     
     // 循环直到达到结束时间或停止标志被设置
     while (autoCapturing_ && std::chrono::steady_clock::now() < endTime) {
@@ -901,35 +1005,71 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
         
         if (!detectionFrame.empty()) {
             attemptCount++;
+            std::cout << "\n--- Attempt " << attemptCount << " ---" << std::endl;
+            std::cout << "Frame size: " << detectionFrame.cols << "x" << detectionFrame.rows << std::endl;
             
             // 尝试检测棋盘格并添加标定图像
             std::vector<cv::Point2f> corners;
             bool found = cameraCalibrator_.detectChessboard(detectionFrame, corners, true);  // 使用完整的调试检测
             
+            std::cout << "Chessboard detection result: " << (found ? "SUCCESS" : "FAILED") << std::endl;
             if (found) {
+                std::cout << "Detected " << corners.size() << " corners" << std::endl;
+                
+                // 记录添加前的图片数量
+                size_t beforeCount = cameraCalibrator_.getCurrentSessionImageCount();
+                std::cout << "Image count before adding: " << beforeCount << std::endl;
+                
                 // 如果检测成功，添加标定图像
-                if (cameraCalibrator_.addCalibrationImage(detectionFrame)) {
+                bool addSuccess = cameraCalibrator_.addCalibrationImage(detectionFrame);
+                
+                // 记录添加后的图片数量
+                size_t afterCount = cameraCalibrator_.getCurrentSessionImageCount();
+                std::cout << "Add calibration image result: " << (addSuccess ? "SUCCESS" : "FAILED") << std::endl;
+                std::cout << "Image count after adding: " << afterCount << std::endl;
+                
+                if (addSuccess) {
                     successCount++;
-                    std::cout << "Auto capture: Successfully added calibration image " 
-                              << successCount << " (attempt " << attemptCount << ")" << std::endl;
+                    std::cout << "✅ Successfully added calibration image " << successCount 
+                              << " (attempt " << attemptCount << ")" << std::endl;
+                    std::cout << "Total images in session: " << afterCount << std::endl;
                     
-                    // 向所有WebSocket客户端发送更新的标定状态
+                    // 立即向所有WebSocket客户端发送更新的标定状态
                     std::string status_message = std::string("{\"type\":\"camera_calibration_status\",")
                                           + "\"calibration_mode\":"
                                           + (cameraCalibrationMode_ ? "true" : "false") + ","
                                           + "\"calibrated\":"
                                           + (cameraCalibrator_.isCalibrated() ? "true" : "false") + ","
                                           + "\"image_count\":"
-                                          + std::to_string(cameraCalibrator_.getImageCount()) + "}";
+                                          + std::to_string(cameraCalibrator_.getImageCount()) + ","
+                                          + "\"current_session_count\":"
+                                          + std::to_string(cameraCalibrator_.getCurrentSessionImageCount()) + ","
+                                          + "\"saved_count\":"
+                                          + std::to_string(cameraCalibrator_.getImageCount()) + ","
+                                          + "\"auto_capture_progress\": true}";
+                    
+                    std::cout << "Sending WebSocket message: " << status_message << std::endl;
                     
                     std::lock_guard<std::mutex> lock(conn_mutex_);
+                    std::cout << "Number of WebSocket connections: " << connections_.size() << std::endl;
                     for (auto conn : connections_) {
                         if (conn) {
-                            conn->send_text(status_message);
+                            try {
+                                conn->send_text(status_message);
+                                std::cout << "Message sent to WebSocket client successfully" << std::endl;
+                            } catch (const std::exception& e) {
+                                std::cout << "Error sending WebSocket message: " << e.what() << std::endl;
+                            }
                         }
                     }
+                } else {
+                    std::cout << "❌ Failed to add calibration image (quality check failed)" << std::endl;
                 }
+            } else {
+                std::cout << "❌ No chessboard detected in this frame" << std::endl;
             }
+        } else {
+            std::cout << "❌ Empty detection frame" << std::endl;
         }
         
         // 等待指定的间隔时间
@@ -939,8 +1079,11 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
     // 设置自动采集标志为false
     autoCapturing_ = false;
     
-    std::cout << "Auto calibration capture thread finished. " 
-              << "Captured " << successCount << " images out of " << attemptCount << " attempts." << std::endl;
+    std::cout << "\n=== AUTO CALIBRATION CAPTURE COMPLETED ===" << std::endl;
+    std::cout << "Final results:" << std::endl;
+    std::cout << "- Attempts: " << attemptCount << std::endl;
+    std::cout << "- Successful captures: " << successCount << std::endl;
+    std::cout << "- Final image count in session: " << cameraCalibrator_.getCurrentSessionImageCount() << std::endl;
     
     // 向所有WebSocket客户端发送自动采集完成的消息
     std::string completion_message = std::string("{\"type\":\"auto_capture_completed\",")
@@ -951,10 +1094,17 @@ void VideoStreamer::autoCalibrationCaptureThread(int durationSeconds, int interv
                               + "\"image_count\":"
                               + std::to_string(cameraCalibrator_.getImageCount()) + "}";
     
+    std::cout << "Sending completion message: " << completion_message << std::endl;
+    
     std::lock_guard<std::mutex> lock(conn_mutex_);
     for (auto conn : connections_) {
         if (conn) {
-            conn->send_text(completion_message);
+            try {
+                conn->send_text(completion_message);
+                std::cout << "Completion message sent to WebSocket client" << std::endl;
+            } catch (const std::exception& e) {
+                std::cout << "Error sending completion message: " << e.what() << std::endl;
+            }
         }
     }
 }
@@ -990,4 +1140,14 @@ cv::Mat VideoStreamer::getDetectionFrame() {
     
     // 检测总是使用原始高分辨率帧
     return detectionFrame_.clone();
+}
+
+// 相机校正控制方法
+void VideoStreamer::setCameraCorrectionEnabled(bool enabled) {
+    cameraCorrectionEnabled_ = enabled;
+    std::cout << "📸 [CAMERA CORRECTION] Set to: " << (enabled ? "enabled" : "disabled") << std::endl;
+}
+
+bool VideoStreamer::isCameraCorrectionEnabled() const {
+    return cameraCorrectionEnabled_;
 }
