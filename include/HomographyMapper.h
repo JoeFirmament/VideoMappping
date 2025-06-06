@@ -40,6 +40,14 @@ public:
     bool saveMarkerGroundCoordinates(const std::string& filename) const;
     bool loadMarkerGroundCoordinates(const std::string& filename);
     
+    // ArUco 检测参数设置方法
+    void setDetectionParameters(int adaptiveThreshWinSizeMin, int adaptiveThreshWinSizeMax, 
+                               int adaptiveThreshWinSizeStep, double adaptiveThreshConstant);
+    void setCornerRefinementMethod(int method);
+    void getDetectionParameters(int& adaptiveThreshWinSizeMin, int& adaptiveThreshWinSizeMax, 
+                               int& adaptiveThreshWinSizeStep, double& adaptiveThreshConstant) const;
+    int getCornerRefinementMethod() const;
+    
     // 坐标系设置和转换相关方法
     void setOrigin(const cv::Point2f& imagePoint);
     cv::Point2f getOrigin() const;

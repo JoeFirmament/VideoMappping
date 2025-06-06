@@ -43,6 +43,10 @@ public:
     void drawCalibrationPoints(cv::Mat& frame);
     cv::Mat getHomographyMatrix() const; // 获取单应性矩阵数据
     
+    // 坐标变换标定模式控制
+    bool toggleCalibrationMode(); // 切换标定模式
+    bool isCalibrationMode() const; // 获取当前标定模式状态
+    
     // ArUco 标记相关方法
     bool toggleArUcoMode();
     bool isArUcoMode() const;
@@ -51,6 +55,14 @@ public:
     bool setMarkerGroundCoordinates(int markerId, const cv::Point2f& groundCoord);
     bool saveMarkerCoordinates(const std::string& filename = "");
     bool loadMarkerCoordinates(const std::string& filename = "");
+    
+    // ArUco 检测参数设置方法
+    void setArUcoDetectionParameters(int adaptiveThreshWinSizeMin, int adaptiveThreshWinSizeMax, 
+                                    int adaptiveThreshWinSizeStep, double adaptiveThreshConstant);
+    void setArUcoCornerRefinementMethod(int method);
+    void getArUcoDetectionParameters(int& adaptiveThreshWinSizeMin, int& adaptiveThreshWinSizeMax, 
+                                    int& adaptiveThreshWinSizeStep, double& adaptiveThreshConstant) const;
+    int getArUcoCornerRefinementMethod() const;
 
     // 相机标定相关方法
     void setCameraCalibrationMode(bool mode);
@@ -94,6 +106,9 @@ public:
     // 相机校正控制
     void setCameraCorrectionEnabled(bool enabled);
     bool isCameraCorrectionEnabled() const;
+    
+    // 系统性能监控
+    std::string getSystemResourceInfo();
 
 private:
     void captureThread(); // 添加线程函数声明
@@ -136,4 +151,9 @@ private:
     
     // 相机校正控制
     std::atomic<bool> cameraCorrectionEnabled_{false};
+    
+    // 错误处理和通知
+    std::atomic<int> frameReadFailureCount_{0};  // 帧读取失败计数器
+    void sendErrorNotification(const std::string& errorType, const std::string& title, const std::string& message);
+    void attemptCameraRecovery();  // 尝试摄像头恢复
 };

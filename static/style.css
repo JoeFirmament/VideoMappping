@@ -1,0 +1,1660 @@
+/* ArUco 面板样式 */
+.aruco-panel {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 10px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.aruco-panel h3 {
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.aruco-panel h4 {
+    color: #34495e;
+    margin: 12px 0 8px 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+    font-size: 14px;
+}
+
+.aruco-panel p {
+    margin: 8px 0;
+    font-size: 13px;
+    color: #666;
+}
+
+/* ArUco 快速设置样式 */
+.aruco-quick-settings {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.quick-params {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.quick-params .form-group {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.quick-params label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.quick-params .form-input {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 80px;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+.detection-info {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-left: 4px solid #17a2b8;
+    border-radius: 4px;
+}
+
+.detection-info p {
+    margin: 5px 0;
+    font-size: 13px;
+    color: #495057;
+}
+
+.detection-info ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.detection-info li {
+    margin: 3px 0;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* 操作指南面板样式 */
+.operation-guide {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0;
+    max-width: 400px;
+    min-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    font-size: 13px;
+}
+
+.guide-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.guide-header h4 {
+    margin: 0;
+    color: #495057;
+    font-size: 16px;
+}
+
+.close-guide-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-guide-btn:hover {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.guide-content {
+    padding: 15px;
+}
+
+.guide-section {
+    margin-bottom: 15px;
+}
+
+.guide-section:last-child {
+    margin-bottom: 0;
+}
+
+.guide-section strong {
+    color: #495057;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.guide-section ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.guide-section li {
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.highlight {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.btn-example {
+    background-color: #e3f2fd;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
+/* 页面底部操作指南样式 */
+.operation-guide-bottom {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin: 20px auto;
+    max-width: calc(100vw - 40px);
+    width: 95%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    position: relative;
+    z-index: 1;
+}
+
+.operation-guide-bottom .guide-header {
+    background: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.operation-guide-bottom .guide-header h4 {
+    margin: 0;
+    color: #495057;
+    font-size: 18px;
+}
+
+.operation-guide-bottom .guide-content {
+    padding: 20px;
+}
+
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 35px;
+}
+
+.operation-guide-bottom .guide-section {
+    margin-bottom: 0;
+    padding: 15px;
+    background: #ffffff;
+    border-radius: 6px;
+    border: 1px solid #f0f0f0;
+}
+
+.operation-guide-bottom .guide-section strong {
+    color: #495057;
+    display: block;
+    margin-bottom: 15px;
+    font-size: 16px;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 8px;
+}
+
+.operation-guide-bottom .guide-section ul,
+.operation-guide-bottom .guide-section ol {
+    margin: 0 0 15px 0;
+    padding-left: 20px;
+}
+
+.operation-guide-bottom .guide-section li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+/* 优化提示样式 */
+.optimization-tips {
+    display: inline-block;
+    background: #e8f5e8;
+    color: #2e7d2e;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+/* 重要提示样式 */
+.important-note {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.important-note strong {
+    color: #856404;
+    margin-bottom: 5px;
+}
+
+/* ArUco 测试验证样式 */
+.aruco-testing-status {
+    background: linear-gradient(135deg, #e8f4f8 0%, #f0f9fc 100%);
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.status-card {
+    background: white;
+    border-radius: 6px;
+    padding: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-card h5 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 14px;
+}
+
+.status-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.status-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.status-value {
+    font-weight: 600;
+    color: #28a745;
+}
+
+.status-value.matrix-not-ready {
+    color: #dc3545;
+}
+
+.status-value.matrix-ready {
+    color: #28a745;
+}
+
+.status-active {
+    color: #007bff !important;
+}
+
+/* 测试状态显示 */
+.testing-status-display {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.status-row {
+    display: flex;
+    gap: 20px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 检测结果样式 */
+.detected-markers-info {
+    margin-bottom: 20px;
+}
+
+.markers-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #f8f9fa;
+}
+
+.marker-result-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.marker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.marker-header h5 {
+    margin: 0;
+    color: #495057;
+    font-size: 16px;
+}
+
+.coordinate-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #d4edda;
+    color: #155724;
+}
+
+.coordinate-badge.no-matrix {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.marker-details {
+    margin-top: 8px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.detail-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: #495057;
+}
+
+.coordinate-value {
+    color: #007bff;
+    font-family: 'Courier New', monospace;
+}
+
+.no-markers {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+    margin: 0;
+}
+
+/* 标定建议样式 */
+.calibration-tips {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.calibration-tips h5 {
+    margin: 0 0 8px 0;
+    color: #856404;
+}
+
+.calibration-tips ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.calibration-tips li {
+    margin-bottom: 4px;
+    color: #856404;
+}
+
+/* 测试提示样式 */
+.testing-tips {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.testing-tips h5 {
+    margin: 0 0 8px 0;
+    color: #0c5460;
+}
+
+.testing-tips ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.testing-tips li {
+    margin-bottom: 4px;
+    color: #0c5460;
+}
+
+/* 矩阵显示样式 */
+.matrix-display {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.matrix-display h4 {
+    margin: 0 0 12px 0;
+    color: #495057;
+    font-size: 16px;
+}
+
+.matrix-result {
+    background: white;
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.matrix-result h5 {
+    margin: 0 0 12px 0;
+    color: #28a745;
+    font-size: 14px;
+}
+
+.matrix-values {
+    margin: 12px 0;
+}
+
+.matrix-values pre {
+    background: #f1f3f4;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #495057;
+    border: 1px solid #e9ecef;
+    margin: 0;
+    overflow-x: auto;
+}
+
+.matrix-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.matrix-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.matrix-success-tip {
+    text-align: left;
+}
+
+.matrix-success-tip h5 {
+    margin: 0 0 8px 0;
+    color: #28a745;
+}
+
+.matrix-success-tip ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.matrix-success-tip li {
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+/* 标定模式下全屏按钮样式 */
+.video-container .fullscreen-container[title*="便于精确选点"] {
+    background: rgba(74, 144, 164, 0.8);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.video-container .fullscreen-container[title*="便于精确选点"] .fullscreen-btn {
+    background: rgba(74, 144, 164, 0.9);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.video-container .fullscreen-container[title*="便于精确选点"] .fullscreen-btn:hover {
+    background: rgba(74, 144, 164, 1);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.05);
+}
+
+/* 全屏模式下的标定提示 */
+.fullscreen-calibration-tip {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.fullscreen-calibration-tip.fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+/* 标定面板头部样式 */
+.calibration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.calibration-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+/* 标定专用全屏按钮 */
+.calibration-fullscreen-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    min-width: 80px;
+}
+
+.calibration-fullscreen-btn:hover {
+    background: linear-gradient(135deg, #0056b3, #003d82);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+}
+
+.calibration-fullscreen-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+.calibration-fullscreen-btn .fullscreen-icon {
+    font-size: 16px;
+    display: inline-block;
+}
+
+.calibration-fullscreen-btn .fullscreen-text {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* 全屏状态下的按钮样式 */
+.calibration-fullscreen-btn.fullscreen-active {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.calibration-fullscreen-btn.fullscreen-active:hover {
+    background: linear-gradient(135deg, #1e7e34, #155724);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.calibration-fullscreen-btn.fullscreen-active .fullscreen-text::after {
+    content: " (ESC退出)";
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+/* ========== 错误通知样式 ========== */
+
+/* 错误提示框容器 */
+.error-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+/* 错误提示框基础样式 */
+.error-toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    margin-bottom: 10px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    border-left: 4px solid #dc3545;
+    overflow: hidden;
+}
+
+.error-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* 不同类型的提示框颜色 */
+.error-toast-error {
+    border-left-color: #dc3545;
+}
+
+.error-toast-warning {
+    border-left-color: #ffc107;
+}
+
+.error-toast-success {
+    border-left-color: #28a745;
+}
+
+.error-toast-info {
+    border-left-color: #007bff;
+}
+
+/* 提示框头部 */
+.error-toast-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px 8px;
+    background: rgba(0,0,0,0.02);
+}
+
+.error-toast-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.error-toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+}
+
+.error-toast-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.error-toast-close:hover {
+    color: #666;
+}
+
+/* 提示框消息内容 */
+.error-toast-message {
+    padding: 0 16px 12px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+/* 严重错误模态框 */
+.camera-error-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.camera-error-modal .modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.camera-error-modal .modal-header {
+    display: flex;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.camera-error-modal .modal-icon {
+    font-size: 24px;
+    margin-right: 12px;
+}
+
+.camera-error-modal .modal-header h3 {
+    margin: 0;
+    flex: 1;
+    font-size: 18px;
+    color: #333;
+}
+
+.camera-error-modal .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.camera-error-modal .modal-close:hover {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.camera-error-modal .modal-body {
+    padding: 16px 24px 20px;
+}
+
+.camera-error-modal .modal-body p {
+    margin: 0 0 16px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.camera-error-modal .error-suggestions {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.camera-error-modal .error-suggestions h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #333;
+}
+
+.camera-error-modal .error-suggestions ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.camera-error-modal .error-suggestions li {
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.camera-error-modal .modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+.camera-error-modal .btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.camera-error-modal .btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.camera-error-modal .btn-primary:hover {
+    background: #0056b3;
+}
+
+/* 紧凑布局模块样式 */
+.function-module {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.function-module:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.compact-module {
+    margin-bottom: 10px;
+    padding: 0;
+}
+
+.module-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #ddd;
+    padding: 16px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.module-title {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.module-desc.compact {
+    margin: 0;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.3;
+}
+
+.sub-section {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.sub-section:last-child {
+    border-bottom: none;
+    border-radius: 0 0 8px 8px;
+}
+
+.sub-section.compact {
+    padding: 8px 15px;
+}
+
+.sub-title {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.compact-title {
+    font-size: 13px !important;
+    margin: 0 0 5px 0 !important;
+    color: #495057;
+}
+
+/* 紧凑控制行 */
+.control-row.compact {
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.control-row.compact:last-child {
+    margin-bottom: 0;
+}
+
+/* 紧凑按钮 */
+.btn.compact {
+    padding: 6px 12px;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+/* 紧凑表单 */
+.form-group.compact {
+    margin-bottom: 6px;
+}
+
+.form-label.compact {
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.form-control.compact {
+    padding: 4px 8px;
+    font-size: 12px;
+    height: auto;
+}
+
+/* 紧凑分辨率信息 */
+.resolution-info.compact {
+    padding: 8px 0;
+}
+
+.resolution-info.compact .resolution-item {
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+/* 紧凑标定流程 */
+.calibration-flow-info.compact {
+    margin: 8px 0;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.calibration-flow-info.compact .flow-text {
+    font-size: 11px;
+}
+
+/* 紧凑标定操作 */
+.calibration-operations.compact {
+    margin: 0;
+}
+
+.auto-capture-section.compact {
+    margin: 8px 0;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+/* 紧凑倒计时显示 */
+.countdown-display.compact {
+    padding: 6px 8px;
+    margin: 6px 0;
+}
+
+.countdown-display.compact .countdown-item {
+    font-size: 11px;
+    margin: 2px 0;
+}
+
+/* 紧凑相机校正控制 */
+.camera-correction-control.compact {
+    padding: 6px 0;
+}
+
+.switch-container.compact .switch-label {
+    font-size: 12px;
+}
+
+.correction-status.compact {
+    margin-top: 4px;
+}
+
+.correction-status.compact .status-text {
+    font-size: 11px;
+}
+
+/* 紧凑状态卡片 */
+.status-card.compact {
+    padding: 8px;
+    margin: 6px 0;
+}
+
+.status-card.compact h5 {
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.aruco-testing-status.compact {
+    margin: 6px 0;
+}
+
+/* 紧凑坐标系统信息 */
+.coordinate-system-info.compact {
+    margin: 6px 0;
+}
+
+.coordinate-system-info.compact .info-item {
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+/* 紧凑调试面板 */
+.debug-panel.compact {
+    padding: 8px 15px;
+}
+
+.debug-toggle.compact {
+    margin-bottom: 6px;
+}
+
+.debug-toggle.compact span {
+    font-size: 12px;
+}
+
+.debug-info.compact {
+    padding: 6px 0;
+}
+
+.debug-info.compact .info-item {
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+/* 紧凑版本的section-description */
+.section-description.compact {
+    font-size: 11px;
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+
+/* 超紧凑样式 - 用于参数设置等子元素 */
+.form-group.extra-compact {
+    margin-bottom: 4px;
+}
+
+.form-label.extra-compact {
+    font-size: 11px;
+    margin-bottom: 2px;
+    color: #666;
+}
+
+.form-control.extra-compact {
+    padding: 3px 6px;
+    font-size: 11px;
+    height: auto;
+    border-radius: 3px;
+}
+
+.btn.extra-compact {
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+    border-radius: 3px;
+}
+
+/* 参数行布局优化 */
+.parameter-rows.compact {
+    margin: 6px 0;
+}
+
+.parameter-row.compact {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: end;
+}
+
+.parameter-row.compact .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 标定状态信息紧凑样式 */
+.calibration-status-info.compact {
+    display: flex;
+    gap: 12px;
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    flex-wrap: wrap;
+}
+
+.calibration-status-info.compact .info-item {
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.calibration-status-info.compact .info-label {
+    color: #666;
+    margin-right: 4px;
+}
+
+.calibration-status-info.compact .info-value {
+    font-weight: 500;
+    color: #333;
+}
+
+/* ==================== 统一字体系统和极简设计 ==================== */
+
+/* 全局字体设置 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #2c3e50;
+}
+
+/* 字体层级系统 - 极简粗细区分 */
+.module-title {
+    font-size: 14px !important;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #1a202c;
+    margin-bottom: 10px;
+}
+
+.sub-title {
+    font-size: 12px !important;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #2d3748;
+    margin-bottom: 8px;
+}
+
+.form-label {
+    font-size: 11px !important;
+    font-weight: 400;
+    line-height: 1.2;
+    color: #4a5568;
+    margin-bottom: 3px;
+}
+
+.btn {
+    font-size: 8px !important;
+    font-weight: 400;
+    line-height: 1.1;
+}
+
+.info-label, .status-label {
+    font-size: 10px !important;
+    font-weight: 400;
+    color: #718096;
+}
+
+.info-value, .status-value {
+    font-size: 10px !important;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+/* ==================== 功能模块分隔和布局 ==================== */
+
+/* 功能模块间的分隔线 - 极简呼吸感 */
+.function-module + .function-module {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 16px;
+    padding-top: 12px;
+}
+
+/* 功能模块内部布局 - 极简呼吸感 */
+.function-module {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f1f5f9;
+}
+
+.module-header {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.module-desc {
+    font-size: 9px !important;
+    color: #a0aec0;
+    margin-top: 2px;
+    margin-bottom: 0;
+    line-height: 1.3;
+    font-weight: 300;
+}
+
+/* 解释性文字样式 */
+.description-text, .section-description {
+    font-size: 8px !important;
+    color: #a0aec0;
+    font-weight: 300;
+    line-height: 1.2;
+    margin: 2px 0;
+}
+
+.flow-text {
+    font-size: 8px !important;
+    color: #a0aec0;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+/* ==================== 子区域布局 - 极简功能区块 ==================== */
+
+.sub-section {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 4px;
+    border-left: 3px solid #e2e8f0;
+    border: 1px solid #f1f5f9;
+}
+
+.sub-section:last-child {
+    margin-bottom: 0;
+}
+
+/* ==================== 表单元素极简化 ==================== */
+
+.form-group {
+    margin-bottom: 8px;
+}
+
+.form-control {
+    padding: 4px 8px;
+    font-size: 11px !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    background: #ffffff;
+    transition: border-color 0.2s ease;
+    height: 26px;
+}
+
+.form-control:focus {
+    border-color: #4299e1;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.1);
+}
+
+/* ==================== 按钮系统 - 极简设计缩小一倍 ==================== */
+
+.btn {
+    padding: 2px 5px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    height: 18px;
+    min-width: 30px;
+}
+
+.btn-primary {
+    background: #4299e1;
+    color: white;
+    border-color: #4299e1;
+}
+
+.btn-success {
+    background: #48bb78;
+    color: white;
+    border-color: #48bb78;
+}
+
+.btn-secondary {
+    background: #a0aec0;
+    color: white;
+    border-color: #a0aec0;
+}
+
+.btn-danger {
+    background: #f56565;
+    color: white;
+    border-color: #f56565;
+}
+
+.btn-info {
+    background: #38b2ac;
+    color: white;
+    border-color: #38b2ac;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ==================== 控制行布局 - 极简呼吸感 ==================== */
+
+.control-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.control-row:last-child {
+    margin-bottom: 0;
+}
+
+/* ==================== 参数设置区域 - 极简呼吸感 ==================== */
+
+.parameter-rows {
+    margin: 8px 0;
+}
+
+.parameter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: end;
+}
+
+.parameter-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* ==================== 状态信息区域 - 极简呼吸感 ==================== */
+
+.calibration-status-info, .resolution-info, .coordinate-system-info {
+    display: flex;
+    gap: 10px;
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: #f8fafc;
+    border-radius: 3px;
+    flex-wrap: wrap;
+    border: 1px solid #f1f5f9;
+}
+
+.info-item, .resolution-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+/* ==================== 流程信息 - 极简呼吸感 ==================== */
+
+.calibration-flow-info {
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: #ebf8ff;
+    border-radius: 3px;
+    border-left: 3px solid #4299e1;
+    border: 1px solid #e6f7ff;
+}
+
+/* ==================== 自动采集区域 - 极简呼吸感 ==================== */
+
+.auto-capture-section {
+    background: #f0fff4;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 8px 0;
+    border-left: 3px solid #48bb78;
+    border: 1px solid #e6fffa;
+}
+
+.compact-title {
+    font-size: 11px !important;
+    font-weight: 600;
+    color: #276749;
+    margin-bottom: 6px;
+}
+
+/* ==================== 倒计时显示 - 超紧凑 ==================== */
+
+.countdown-display {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0;
+    padding: 2px 4px;
+    background: #fffaf0;
+    border-radius: 2px;
+    border-left: 2px solid #ed8936;
+    flex-wrap: wrap;
+}
+
+.countdown-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.countdown-label {
+    font-size: 8px !important;
+    color: #9c4221;
+}
+
+.countdown-value {
+    font-size: 8px !important;
+    font-weight: 600;
+    color: #c53030;
+}
+
+/* ==================== 相机校正控制 - 超紧凑 ==================== */
+
+.camera-correction-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    background: #f7fafc;
+    border-radius: 2px;
+}
+
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.switch-label {
+    font-size: 9px !important;
+    color: #4a5568;
+}
+
+.correction-status {
+    padding: 2px 4px;
+    border-radius: 2px;
+    background: #fed7d7;
+}
+
+.status-text {
+    font-size: 8px !important;
+    color: #c53030;
+}
+
+/* ==================== ArUco测试状态 - 超紧凑 ==================== */
+
+.aruco-testing-status {
+    margin: 4px 0;
+}
+
+.status-card {
+    background: #f0fff4;
+    border-radius: 2px;
+    padding: 4px;
+    border-left: 2px solid #48bb78;
+}
+
+.status-card h5 {
+    font-size: 9px !important;
+    font-weight: 500;
+    color: #276749;
+    margin-bottom: 2px;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 2px;
+}
+
+/* ==================== 调试信息 - 超紧凑 ==================== */
+
+.debug-panel {
+    background: #f7fafc;
+    border-radius: 2px;
+    padding: 6px;
+}
+
+.debug-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.debug-info .info-item {
+    margin-bottom: 4px;
+    padding: 3px;
+    background: #ffffff;
+    border-radius: 2px;
+    border: 1px solid #e2e8f0;
+}
+
+/* ==================== 响应式调整 ==================== */
+
+@media (max-width: 768px) {
+    .control-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .parameter-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .calibration-status-info, .resolution-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ==================== 标定参数设置区块特殊样式 - 缩小一倍 ==================== */
+
+/* 标定参数设置区块整体 */
+.calibration-params-section {
+    padding: 3px !important;
+    margin-bottom: 3px !important;
+}
+
+/* 标定参数设置的标题 */
+.calibration-params-section .sub-title {
+    font-size: 8px !important;
+    font-weight: 600;
+    margin-bottom: 2px !important;
+}
+
+/* 标定参数设置中的参数行容器 */
+.calibration-params-section .parameter-rows {
+    margin: 2px 0 !important;
+}
+
+/* 标定参数设置中的参数行 */
+.calibration-params-section .parameter-row {
+    gap: 2px !important;
+    margin-bottom: 2px !important;
+}
+
+/* 标定参数设置中的表单组 */
+.calibration-params-section .parameter-row .form-group {
+    margin-bottom: 0 !important;
+}
+
+/* 标定参数设置中的标签 */
+.calibration-params-section .parameter-row .form-label {
+    font-size: 7px !important;
+    font-weight: 400;
+    margin-bottom: 0px !important;
+    line-height: 1.0;
+}
+
+/* 标定参数设置中的输入框和选择框 */
+.calibration-params-section .parameter-row .form-control {
+    padding: 1px 2px !important;
+    font-size: 7px !important;
+    height: 14px !important;
+    border-radius: 1px !important;
+}
+
+/* 标定参数设置中的按钮 */
+.calibration-params-section .parameter-row .btn {
+    padding: 1px 3px !important;
+    font-size: 7px !important;
+    height: 14px !important;
+    min-width: 20px !important;
+    border-radius: 1px !important;
+}
+
+/* 标定参数设置中的状态信息 */
+.calibration-params-section .calibration-status-info {
+    padding: 1px 2px !important;
+    margin: 2px 0 !important;
+    gap: 3px !important;
+}
+
+.calibration-params-section .calibration-status-info .info-item {
+    font-size: 6px !important;
+}
+
+.calibration-params-section .calibration-status-info .info-label {
+    font-size: 6px !important;
+}
+
+.calibration-params-section .calibration-status-info .info-value {
+    font-size: 6px !important;
+}

@@ -1,11 +1,10 @@
-# 视频映射系统开发日志
+# VideoMapping项目开发日志
 
-## 平台信息
-- **硬件平台**: Rock5C-8G (ARM64)
+## 项目信息
+- **开发平台**: Rock 5C (ARM64)
 - **操作系统**: Linux 6.1.43-15-rk2312
 - **CPU架构**: ARM64
-- **内存**: 8GB
-- **开发环境**: C++, OpenCV, Crow Web框架
+- **主要技术栈**: C++, OpenCV, Crow Web框架
 
 ## 标定问题跟踪
 
@@ -649,4 +648,880 @@ initialize() {
 
 **当前状态**: 自动采集按钮状态问题已修复，功能完全可用
 
---- 
+---
+
+### 2024-12-19 14:30 - ArUco检测界面和功能优化
+
+### 问题解决
+1. **ArUco标记原点标识**
+   - 将左上角（第一个角点）标记为原点，用更大的红色圆圈和"O"标记
+   - 其他角点用较小的红色圆圈和数字标记
+   - 中心点用蓝色圆圈标记，并添加"Center"文字说明
+
+2. **检测参数设置界面**
+   - 修复ArUco面板显示问题，现在点击"启用ArUco模式"会正确显示参数设置面板
+   - 添加了完整的检测参数调节功能
+   - 针对远距离检测优化了默认参数
+
+3. **用户界面改进**
+   - 将操作指南从视频覆盖层移动到页面底部
+   - 重新设计指南布局，使用网格系统分为三个部分
+   - 添加了详细的标记元素说明和远距离检测优化建议
+
+### 技术改进
+- **坐标轴增强**：坐标轴长度从200像素增加到400像素，粗细从2像素增加到4像素
+- **ArUco检测优化**：
+  - 自适应阈值窗口最大值：23→35
+  - 窗口步长：10→5（更精细的检测）
+  - 阈值常数：7→5（对低对比度更敏感）
+  - 添加了更多检测参数优化
+
+### 用户体验
+- 清晰标识了ArUco标记的各个组成部分
+- 提供了远距离检测的优化建议
+- 改进了界面布局和说明文档
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024-12-19 15:00 - 操作指南完善和测量说明
+
+### 重要改进
+1. **ArUco测量点明确**
+   - 明确说明测量ArUco标记时要测量**蓝色中心点**到地面坐标原点的距离
+   - 不是测量红色角点，而是测量标记的几何中心点
+   - 在操作指南中用醒目的警告框标出这个重要信息
+
+2. **操作指南完善**
+   - 整合了ArUco检测和相机内参标定的完整说明
+   - 采用简洁的三栏布局，增加空气感
+   - 添加了相机标定的质量提示和操作流程
+
+3. **视觉优化**
+   - 坐标轴长度增加到600像素，保持2像素粗细（更长但不更粗）
+   - 操作指南采用卡片式设计，增加空白间距
+   - 添加了优化提示标签和重要提示框
+
+### 用户体验提升
+- **测量准确性**：明确标记测量点，避免测量错误
+- **空气感设计**：增加间距，使用卡片布局，视觉更舒适
+- **操作完整性**：包含完整的相机标定和ArUco检测流程
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024-12-19 20:30 - 界面可用性重大优化
+
+### 问题描述
+用户反馈没有看到坐标设置区域，原有设计需要点击按钮才能显示标记坐标输入面板，使用不便。
+
+### 解决方案
+
+#### 1. 添加内联坐标设置区域
+- **直接显示**：在ArUco检测区域直接显示标记坐标设置面板
+- **无需点击**：无需点击额外按钮即可看到和使用坐标输入功能
+- **紧凑布局**：使用参数行布局，包含标记ID、地面坐标X、地面坐标Y输入框
+
+#### 2. 界面功能改进
+- **快速显示列表**：添加已设置标记的快速显示列表
+- **智能递增**：设置坐标后自动递增标记ID，提高操作效率
+- **反馈机制**：添加成功提示和动画效果反馈
+- **本地存储**：实现本地坐标存储和同步更新
+
+#### 3. CSS样式优化
+- **新增样式类**：`.aruco-coordinate-setting`专用样式
+- **响应式设计**：支持移动设备的自适应布局
+- **视觉层次**：添加视觉层次感和交互反馈效果
+- **动画反馈**：设置成功后的颜色变化动画
+
+### 技术实现
+
+#### 前端界面 (static/index.html)
+```html
+<!-- ArUco标记坐标设置区域 - 始终显示 -->
+<div class="aruco-coordinate-setting mt-3">
+    <h5 class="mb-2">🎯 标记坐标设置</h5>
+    <div class="parameter-row">
+        <div class="form-group compact">
+            <label class="form-label">标记 ID</label>
+            <input type="number" id="markerIdInline" class="form-control compact" min="0" max="49" value="0">
+        </div>
+        <!-- X、Y坐标输入框和设置按钮 -->
+    </div>
+    <!-- 已设置标记快速显示 -->
+</div>
+```
+
+#### 样式文件 (static/styles.css)
+- 新增`.aruco-coordinate-setting`等样式类
+- 实现紧凑的表单布局和响应式设计
+- 添加交互反馈和动画效果
+
+#### JavaScript功能 (static/script.js)
+- 新增`setMarkerCoordinatesInline()`方法
+- 新增`updateMarkersQuickDisplay()`方法
+- 增强`handleMarkerCoordinatesSet()`方法
+- 自动ID递增和快速显示更新
+
+### 当前效果
+
+**✅ 界面改进**
+- 坐标设置区域现在直接可见，无需额外操作
+- 简洁的一行式布局，操作高效
+- 已设置标记的实时显示列表
+
+**✅ 功能完善**
+- ArUco检测工作正常（截图显示6个标记正常检测）
+- 坐标轴和标记显示效果良好
+- 所有视觉元素（红色角点、绿色ID、蓝色中心点）清晰可见
+
+**✅ 用户体验**
+- 界面更直观，降低使用门槛
+- 操作流程更顺畅
+- 即时反馈提升操作确信度
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024-12-19 21:00 - 错误处理与用户体验进一步优化
+
+### 问题描述
+用户反馈F11快捷键全屏不够直观，希望有更直观的全屏按钮。同时需要建立后端错误与前端通知机制。
+
+### 重大改进
+
+#### 1. 后端错误处理机制实现
+**错误检测与分级**:
+- **帧读取失败监控**: 连续失败计数，5次发出警告，20次触发严重错误
+- **设备状态监控**: 检测V4L2设备冲突和资源占用问题
+- **自动恢复机制**: 设备重新初始化、资源释放重试
+
+**核心实现**:
+```cpp
+// VideoStreamer.cpp - 错误检测
+if (frameReadFailureCount_ >= 5) {
+    sendErrorNotification("camera_warning", "摄像头读取不稳定", 
+                        "连续" + std::to_string(frameReadFailureCount_) + "次帧读取失败");
+}
+
+if (frameReadFailureCount_ >= 20) {
+    sendErrorNotification("camera_critical", "摄像头设备异常", 
+                        "设备可能被占用或断开连接，请检查摄像头状态");
+    attemptCameraRecovery();
+}
+
+// 摄像头恢复尝试
+void VideoStreamer::attemptCameraRecovery() {
+    cap_.release();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    if (autoDetectCamera()) {
+        // 重新设置分辨率和参数
+    }
+}
+```
+
+#### 2. 前端错误通知系统
+**多级通知机制**:
+- **Toast提示框**: 不同类型错误的分级显示
+- **严重错误模态框**: 设备异常时的详细说明和解决方案
+- **实时状态更新**: WebSocket推送错误状态变化
+
+**JavaScript实现**:
+```javascript
+handleErrorNotification(data) {
+    switch (data.error_type) {
+        case 'camera_warning':
+            this.showErrorToast(title, message, 'warning', 5000);
+            break;
+        case 'camera_critical':
+            this.showErrorToast(title, message, 'error', 10000);
+            this.showCameraErrorModal(title, message);
+            break;
+        case 'camera_recovery_success':
+            this.showErrorToast(title, message, 'success', 5000);
+            break;
+    }
+}
+```
+
+#### 3. 标定专用全屏按钮
+**可视化界面改进**:
+- **直观按钮**: 在单应性矩阵标定面板标题栏添加专用全屏按钮
+- **状态反馈**: 按钮图标和文字根据全屏状态动态变化（⛶全屏/❏退出）
+- **多浏览器支持**: 兼容各种浏览器的全屏API
+
+**界面布局**:
+```html
+<div class="calibration-header">
+    <h3>📐 单应性矩阵标定</h3>
+    <button id="calibrationFullscreenBtn" class="calibration-fullscreen-btn">
+        <span class="fullscreen-icon">⛶</span>
+        <span class="fullscreen-text">全屏</span>
+    </button>
+</div>
+```
+
+**视觉设计**: 
+- 渐变蓝色按钮，hover效果，圆角设计
+- 全屏状态下变为绿色，显示"退出 (ESC退出)"
+- 保留ESC键快捷退出功能
+
+#### 4. CSS样式系统完善
+**错误通知样式**:
+```css
+.error-toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.camera-error-modal {
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+```
+
+**全屏按钮样式**:
+```css
+.calibration-fullscreen-btn {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+```
+
+### 技术架构改进
+
+#### 错误处理流程
+1. **后端监控** → 检测错误条件
+2. **JSON通知** → WebSocket实时推送
+3. **前端处理** → 分级显示和用户引导
+4. **自动恢复** → 后台尝试修复问题
+
+#### 全屏功能流程
+1. **按钮点击** → 触发全屏切换
+2. **状态检测** → 判断当前是否全屏
+3. **API调用** → 兼容多浏览器全屏方法
+4. **界面更新** → 按钮状态和提示文字更新
+
+### 用户体验提升
+
+**✅ 错误处理**
+- 用户能实时了解后端问题状态
+- 提供具体的解决方案建议
+- 自动恢复减少手动干预
+
+**✅ 界面操作**
+- 全屏按钮更加直观易用
+- 状态反馈明确，操作确信度高
+- 保留键盘快捷键支持高级用户
+
+**✅ 开发调试**
+- 完善的错误日志和分级
+- 前后端状态同步机制
+- 易于问题定位和解决
+
+### 代码结构改进
+- **模块化**: 错误处理、全屏功能各自独立模块
+- **可扩展**: 易于添加新的错误类型和处理方式
+- **可维护**: 清晰的代码结构和注释说明
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024-12-19 21:15 - 关键并发安全修复
+
+### 问题描述
+在前后端联合调试时偶尔出现OpenCV Mat对象异常：
+```
+cv::Exception: Unknown array type in function 'cvarrToMat'
+```
+
+### 根本原因分析
+1. **Mat对象竞争条件**: 使用`std::move()`后原对象变为空，但后续代码仍尝试使用
+2. **时序竞争**: WebSocket连接建立时前端立即请求数据，但Mat对象可能未正确初始化
+3. **并发访问**: 多线程同时访问同一Mat对象导致数据竞争
+
+### 关键修复措施
+
+#### 1. 强化Mat对象复制策略
+**问题代码**:
+```cpp
+frame_ = std::move(processedFrame);    // processedFrame变为空
+detectionFrame_ = frame_.clone();      // 可能访问空对象
+```
+
+**修复代码**:
+```cpp
+// 验证processedFrame的有效性
+if (processedFrame.empty() || processedFrame.cols <= 0 || processedFrame.rows <= 0) {
+    std::cerr << "Warning: Invalid processedFrame, skipping frame update" << std::endl;
+    continue;
+}
+
+try {
+    // 安全的复制策略：确保Mat对象完整性
+    frame_ = processedFrame.clone();           // 深度复制，避免move后的空对象
+    detectionFrame_ = processedFrame.clone();  // 独立复制，确保两个对象都有效
+    
+    // 验证复制结果
+    if (frame_.empty() || detectionFrame_.empty()) {
+        std::cerr << "Error: Frame copy operation failed" << std::endl;
+        continue;
+    }
+} catch (const cv::Exception& e) {
+    std::cerr << "OpenCV error in frame copying: " << e.what() << std::endl;
+    continue;
+}
+```
+
+#### 2. 增强getDetectionFrame()安全性
+**多重安全检查**:
+```cpp
+cv::Mat VideoStreamer::getDetectionFrame() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // 多重安全检查
+    if (detectionFrame_.empty()) {
+        std::cerr << "Warning: detectionFrame_ is empty" << std::endl;
+        return cv::Mat();
+    }
+    
+    if (detectionFrame_.cols <= 0 || detectionFrame_.rows <= 0) {
+        std::cerr << "Warning: detectionFrame_ has invalid dimensions" << std::endl;
+        return cv::Mat();
+    }
+    
+    try {
+        cv::Mat result = detectionFrame_.clone();
+        if (result.empty() || result.cols <= 0 || result.rows <= 0) {
+            std::cerr << "Error: Frame clone operation failed" << std::endl;
+            return cv::Mat();
+        }
+        return result;
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV error in getDetectionFrame: " << e.what() << std::endl;
+        return cv::Mat();
+    }
+}
+```
+
+#### 3. 安全的Mat对象初始化
+**初始化时预防措施**:
+```cpp
+// 安全初始化Mat对象 - 防止未初始化的Mat导致异常
+try {
+    cv::Mat testFrame;
+    if (cap_.read(testFrame) && !testFrame.empty()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        frame_ = testFrame.clone();
+        detectionFrame_ = testFrame.clone();
+        std::cout << "✅ [MAT INIT] Mat objects initialized safely" << std::endl;
+    } else {
+        // 创建空的Mat对象避免未初始化状态
+        std::lock_guard<std::mutex> lock(mutex_);
+        frame_ = cv::Mat();
+        detectionFrame_ = cv::Mat();
+    }
+} catch (const cv::Exception& e) {
+    std::cerr << "❌ [MAT INIT] OpenCV error: " << e.what() << std::endl;
+}
+```
+
+#### 4. 加强调用端安全检查
+**addCameraCalibrationImage()强化**:
+```cpp
+// 额外的有效性检查
+if (detectionFrame.cols <= 0 || detectionFrame.rows <= 0) {
+    std::cerr << "Invalid detection frame dimensions for calibration" << std::endl;
+    return false;
+}
+
+// 检查数据完整性
+if (detectionFrame.type() != CV_8UC3 && detectionFrame.type() != CV_8UC1) {
+    std::cerr << "Invalid detection frame type for calibration" << std::endl;
+    return false;
+}
+```
+
+### 技术架构改进
+
+#### 并发安全策略
+1. **深度复制替代移动语义**: 避免Mat对象被意外清空
+2. **多重验证机制**: 每次操作前验证Mat对象的有效性
+3. **异常隔离**: 将OpenCV操作包装在try-catch中
+4. **初始化保护**: 确保Mat对象在使用前被正确初始化
+
+#### 性能与安全平衡
+- **安全优先**: 使用clone()替代move()确保数据完整性
+- **适度性能损失**: 深度复制带来的性能开销换取稳定性
+- **错误容忍**: 单次操作失败不影响整体系统运行
+
+### 修复效果预期
+
+**✅ 问题解决**
+- 消除"Unknown array type"异常
+- 防止并发访问导致的Mat对象损坏
+- 提高前后端联合调试的稳定性
+
+**✅ 系统健壮性**
+- 更强的错误恢复能力
+- 详细的错误日志便于问题定位
+- 渐进式降级处理
+
+**✅ 开发体验**
+- 减少调试过程中的意外崩溃
+- 更清晰的错误提示和处理流程
+- 提高开发效率
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024年12月16日 - 界面布局重大重构
+
+### 🎨 **界面设计优化**
+
+**问题分析**：
+- 用户反馈界面功能分区不够清晰
+- 全屏按钮位置离视频观察区太远，操作不便
+- 操作教程区域显得混乱，功能入口不够直观
+- 参数设置区域与视频区距离过远，影响操作效率
+
+**解决方案**：
+1. **重新设计界面布局结构**：
+   ```
+   ┌─ 📹 视频区域 + 浮动控制面板 ─┐
+   ├─ 🎛️ 标定参数快速设置区      │
+   ├─ ⚙️ 功能配置区（左右分栏）   │
+   ├─ 📊 数据显示区             │
+   └─ 📋 精简版操作提示（可折叠）─┘
+   ```
+
+2. **视频区域优化**：
+   - 全屏按钮移至视频右上角浮动面板，贴近观察区
+   - 分辨率信息显示在左上角
+   - 当前模式指示器显示在底部中央
+   - 保持F11快捷键和ESC退出功能
+
+3. **快速控制区设计**：
+   - 视频下方直接提供模式切换按钮（📐标定/🎯ArUco/📷相机）
+   - 当前模式的参数快速设置区，无需跳转到详细配置
+   - 开始/停止按钮就近放置
+
+4. **功能配置区重构**：
+   - 左侧垂直导航，图标+文字清晰标识
+   - 右侧详细配置面板，按功能模块分组
+   - 响应式设计，移动端自动转为水平导航
+
+5. **数据显示区统一**：
+   - 标定点列表、ArUco检测结果、单应性矩阵、相机标定状态
+   - 网格布局，自适应屏幕宽度
+   - 一致的卡片设计风格
+
+6. **帮助系统简化**：
+   - 可折叠的操作提示区域
+   - 分模块精简指引，去除冗余信息
+   - 渐进式信息展示
+
+**技术实现**：
+- **HTML结构**：创建`index_new.html`，采用语义化标签和清晰的层级结构
+- **CSS样式**：创建`style_new.css`，使用CSS变量和现代布局技术（Grid/Flexbox）
+- **JavaScript适配**：
+  - 新增`activateQuickMode()`实现快速模式切换
+  - 新增`updateQuickParams()`动态更新参数区域
+  - 新增`switchConfigPanel()`配置面板切换
+  - 新增`toggleHelpSection()`帮助区域折叠
+  - 新增`updateNewLayoutStatus()`状态同步更新
+  - 参数同步机制：快速设置区与详细配置区双向绑定
+
+**用户体验改进**：
+- ✅ 全屏按钮距离视频区域<30px，操作便利性显著提升
+- ✅ 标定参数输入无需滚动页面，就近在视频下方
+- ✅ 功能模块导航清晰，点击即切换，无需页面跳转
+- ✅ 帮助信息可折叠，不占用常用操作空间
+- ✅ 响应式设计，移动端和桌面端体验一致
+
+**性能优化**：
+- CSS变量统一管理颜色和间距，便于主题定制
+- 最小化DOM操作，使用事件委托
+- 状态更新函数合并，减少重复渲染
+
+**兼容性保障**：
+- 保持软链接关系，build/static自动同步
+- 备份原有文件（index_backup.html, style_backup.css）
+- 所有原有功能ID和事件处理保持兼容
+- 渐进增强，新功能不影响现有功能
+
+**调试支持**：
+- 保留所有原有调试功能
+- 新增快速模式状态显示
+- 参数同步日志记录
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024年12月16日 19:00 - 前端设计回滚
+
+### 🔄 **设计决策调整**
+
+**问题反思**：
+- 新的界面布局设计过于复杂，改动幅度太大
+- 用户反馈新设计体验不佳，与原有操作习惯差异过大
+- 一次性重构风险较高，不利于渐进式改进
+
+**回滚操作**：
+1. **恢复HTML/CSS**：
+   - `index.html` ← `index_backup.html`
+   - `style.css` ← `style_backup.css`
+   - 删除新布局文件 `index_new.html`, `style_new.css`
+
+2. **清理JavaScript**：
+   - 移除所有新布局相关的DOM元素引用
+   - 删除新布局专用方法：`activateQuickMode()`, `updateQuickParams()`, `switchConfigPanel()` 等
+   - 恢复原有的事件监听器绑定
+   - 保留备份文件 `script_with_new_layout.js`
+
+3. **保持核心功能**：
+   - ✅ 错误处理和通知系统完整保留
+   - ✅ 全屏功能和快捷键支持保留
+   - ✅ 并发安全修复保留
+   - ✅ 所有标定和ArUco功能正常
+
+**经验总结**：
+- **渐进式改进** > 大规模重构
+- **用户反馈优先**：技术实现需服从用户体验
+- **向后兼容**：保持用户操作习惯的连续性
+- **备份策略**：重大改动前必须有完整备份
+
+**后续改进方向**：
+- 基于现有布局进行微调优化
+- 单个功能点的独立改进
+- 更多的用户测试和反馈收集
+- 小步快跑的迭代模式
+
+### 当前稳定状态
+- 界面布局：恢复到用户熟悉的版本
+- 核心功能：全部正常运行
+- 错误处理：健壮性保持
+- 全屏功能：继续可用（F11键 + 专用按钮）
+
+### 平台信息
+- 操作系统：Linux 6.1.43-15-rk2312
+- CPU类型：RK3588
+- 开发平台：Rock-5C-8GB
+
+---
+
+## 2024年12月16日 19:00 - 功能模块化UI重构
+**平台信息**: Rock 5C, ARM64, Linux 6.1.43-15-rk2312
+
+### 问题描述
+用户反馈界面功能分区不够清晰，希望按主要功能重新组织布局：
+- 将相关功能元素分组
+- 缩小元素尺寸，提高空间利用率
+- 保持原有功能和多语言支持不变
+
+### 解决方案
+1. **重新组织HTML结构**
+   - 创建3个主要功能模块：内参标定、单应性矩阵、调试信息
+   - 使用 `function-module` 和 `compact-module` 类进行模块化布局
+   - 子功能使用 `sub-section` 分组
+
+2. **新增CSS样式系统**
+   - 添加完整的紧凑布局样式支持
+   - `.compact` 修饰符用于缩小元素尺寸
+   - 保持视觉层次清晰，提高信息密度
+
+3. **保持兼容性**
+   - 所有原有元素ID、class名称完全保持不变
+   - 所有data-i18n属性保持不变，确保多语言支持正常
+   - 所有JavaScript功能无需修改
+
+### 技术实现
+- **HTML布局重构**: 将散布的控制区域重新组织为逻辑功能模块
+- **CSS样式扩展**: 新增147行紧凑布局样式，支持各种compact变体
+- **模块化设计**: 每个功能模块独立，便于后续维护和扩展
+
+### 测试要点
+- [ ] 验证所有按钮功能正常
+- [ ] 验证多语言切换正常
+- [ ] 验证界面布局在不同屏幕尺寸下的表现
+- [ ] 验证所有表单输入功能正常
+
+### 备注
+这次重构采用渐进式改进策略，避免了之前大规模重构导致的问题。保持了所有现有功能的完整性，同时显著改善了界面的组织性和空间利用率。
+
+## 2024年12月16日 19:30 - UI重构问题修复
+**平台信息**: Rock 5C, ARM64, Linux 6.1.43-15-rk2312
+
+### 修复内容
+1. **主标题尺寸调整**
+   - 保持主功能标题（内参标定、单应性矩阵）为18px，突出重要性
+   - 其他元素保持紧凑尺寸
+
+2. **卡片式设计优化**
+   - 增强function-module的视觉效果：圆角12px、阴影加深
+   - 添加hover动效：hover时轻微上浮和阴影增强
+   - 模块头部采用渐变背景，提升视觉层次
+
+3. **全屏功能区分**
+   - 主全屏按钮（右上角）→ 页面全屏（document.documentElement）
+   - 标定专用全屏按钮 → 视频全屏（videoElement），用于精确点击标定点
+
+4. **操作指南位置修复**
+   - 限制最大宽度为calc(100vw - 40px)，防止超出页面区域
+   - 添加相对定位和z-index，确保正确显示
+
+### 技术细节
+- CSS卡片动效：transform: translateY(-2px) + box-shadow变化
+- 全屏API兼容性：支持标准、webkit、moz、ms前缀
+- 响应式布局：操作指南自适应屏幕宽度
+
+### 测试要点
+- [ ] 验证两种全屏功能正常工作
+- [ ] 验证卡片hover效果
+- [ ] 验证操作指南不会超出页面边界
+- [ ] 验证标定点击精度（视频全屏模式下）
+
+## 2024-12-19 全屏功能修改为视频全屏
+
+### 修改内容
+- **问题**: 所有全屏按钮执行的都是页面全屏，对用户来说没有实际用处
+- **解决方案**: 将所有全屏功能改为视频全屏
+
+### 具体修改
+1. **script.js**:
+   - 修改`toggleFullscreen()`函数，将页面全屏改为视频全屏
+   - 使用`document.getElementById('videoImage')`获取视频元素
+   - 添加错误处理和用户提示
+   - 修复`toggleCalibrationFullscreen()`中的视频元素ID错误
+
+2. **script_with_new_layout.js**:
+   - 修改`toggleCalibrationFullscreen()`函数为视频全屏
+   - 保持主全屏按钮已经是视频全屏的正确实现
+
+### 调试方法
+- 点击全屏按钮后检查是否只有视频进入全屏
+- 测试F11快捷键是否触发视频全屏
+- 验证ESC键退出全屏功能
+- 确认标定模式下的全屏提示正确显示
+
+### 技术细节
+- 使用`videoElement.requestFullscreen()`替代`document.documentElement.requestFullscreen()`
+- 保持全屏状态监听和按钮状态更新逻辑不变
+- 添加错误提示和兼容性检查
+
+## 2024-12-19 ArUco测试和单应性矩阵加载功能说明
+
+### ArUco测试问题修复
+- **问题**: 前端期望`data.enabled`字段，但后端返回`data.aruco_mode`字段
+- **解决方案**: 
+  1. 前端同时支持两个字段：`data.enabled || data.aruco_mode`
+  2. 后端同时返回两个字段以确保兼容性
+  3. 添加单应性矩阵加载状态和检测标记数量信息
+
+### 单应性矩阵加载功能位置
+- **功能位置**: 需要先进入"单应性矩阵标定模式"
+- **操作步骤**:
+  1. 点击"单应性矩阵标定"卡片中的"进入标定模式"按钮
+  2. 在展开的标定面板中找到"加载矩阵文件"按钮
+  3. 按钮位于"保存矩阵文件"按钮旁边
+
+### 功能实现状态
+- ✅ 前端加载按钮已存在（`loadCalibrationBtn`）
+- ✅ 前端事件处理已实现（`loadHomographyCalibration()`）
+- ✅ 后端API已实现（`load_homography` action）
+- ✅ 加载功能包含矩阵数据和标定点数据恢复
+
+### 技术细节
+- 前端发送`{action: "load_homography"}`请求
+- 后端返回`homography_loaded`消息类型
+- 支持矩阵数据和标定点数据的完整恢复
+- 自动更新界面显示和状态
+
+## 2024-12-19 ArUco面板显示问题修复
+
+### 问题诊断
+- **现象**: 点击"启用ArUco测试"按钮后，控制台显示正确的状态切换，但界面上没有显示ArUco面板
+- **原因**: JavaScript代码正确显示了`arucoTestingStatus`小状态区域，但没有显示主要的`arucoPanel`完整面板
+
+### 修复内容
+1. **增强面板显示逻辑**:
+   ```javascript
+   // 同时显示状态区域和完整面板
+   if (arucoTestingStatus) arucoTestingStatus.style.display = 'block';
+   if (arucoPanel) {
+       arucoPanel.style.display = 'block';
+       console.log('🎯 [ARUCO TESTING] ArUco面板已显示');
+   }
+   ```
+
+2. **添加面板切换逻辑**:
+   ```javascript
+   // 隐藏其他面板，确保ArUco面板独占显示
+   const calibrationPanel = document.getElementById('calibrationPanel');
+   const coordinateTestPanel = document.getElementById('coordinateTestPanel');
+   if (calibrationPanel) calibrationPanel.style.display = 'none';
+   if (coordinateTestPanel) coordinateTestPanel.style.display = 'none';
+   ```
+
+3. **增加防抖逻辑**:
+   ```javascript
+   // 防止快速重复点击导致状态混乱
+   if (this.arucoToggleTimeout) return;
+   this.arucoToggleTimeout = setTimeout(() => {
+       this.arucoToggleTimeout = null;
+   }, 500);
+   ```
+
+### 修复结果
+✅ **ArUco面板成功显示**: 控制台显示"ArUco面板已显示"日志
+✅ **面板正确隐藏**: 控制台显示"ArUco面板已隐藏"日志  
+⚠️ **剩余问题**: 一次点击触发两次状态切换（启用→禁用）
+
+### 剩余问题分析
+**现象**: 单击按钮后立即发生两次状态切换：
+1. `aruco_mode: true` → 面板显示
+2. `aruco_mode: false` → 面板隐藏
+
+**可能原因**:
+1. 后端toggle逻辑有问题
+2. 前端有重复的事件监听器
+3. WebSocket消息处理有延迟导致状态混乱
+
+### 下一步调试方向
+1. 检查后端toggle_aruco_mode的实现逻辑
+2. 检查前端是否有重复绑定的事件监听器
+3. 添加更详细的WebSocket消息日志
+
+## 2024-12-19 ArUco双重切换问题修复
+
+### 问题根因发现
+- **现象**: 点击一次"启用ArUco测试"按钮，触发两次状态切换（启用→禁用）
+- **根本原因**: JavaScript中ArUco按钮被重复绑定了两次事件监听器
+  - 第296行：第一次绑定
+  - 第436行：第二次绑定（重复）
+
+### 修复方案
+**前端修复**（script.js和script_with_new_layout.js）:
+```javascript
+// 删除重复的事件监听器绑定
+// 保留第一次绑定，删除第436行的重复绑定
+// ArUco测试验证相关事件监听器已在上方绑定，无需重复绑定
+```
+
+### 技术细节
+1. **事件监听器重复绑定导致的问题**:
+   - 每次点击按钮触发两次`toggleArUcoTestingMode()`函数
+   - 两次WebSocket请求发送到后端
+   - 后端正确响应两次状态切换
+   - 前端UI快速显示→隐藏ArUco面板
+
+2. **防抖机制的作用**:
+   - 已添加500ms防抖逻辑，但无法阻止重复绑定的监听器
+   - 防抖只能防止用户快速连续点击
+
+### 预期修复效果
+✅ **解决双重切换**: 一次点击只触发一次状态切换  
+✅ **ArUco面板正常显示**: 启用后面板保持显示状态  
+✅ **视频流显示ArUco信息**: 包括角点、原点、中心点和坐标轴  
+✅ **状态同步正常**: 前后端状态完全同步
+
+### ArUco功能特性
+**当启用ArUco测试后，视频流中将显示**:
+- 🎯 检测到的ArUco标记边框和ID
+- 📍 标记的四个角点（绿色小圆圈）
+- ⭕ 标记中心点（红色圆圈）
+- 📐 坐标轴显示（X轴红色，Y轴绿色）
+- 📊 检测状态文字提示
+- 🔢 计算出的地面坐标信息
+
+**ArUco面板功能**:
+- 📋 实时检测结果列表
+- ⚙️ 检测参数调节
+- 📝 使用提示和说明
+
+## 2024-12-19 ArUco显示优化和文字清理
+
+### 问题发现
+- **现象**: 画面左上角文字重叠，有乱码，绿色、红色、蓝色文字混乱
+- **原因**: 
+  1. VideoStreamer和HomographyMapper都在显示ArUco信息，造成重复
+  2. 中文显示可能产生编码问题
+  3. 文字位置重叠
+
+### 优化方案
+
+#### 1. **清理重复显示**
+- 移除VideoStreamer中的重复文字显示
+- 统一由HomographyMapper处理所有ArUco显示信息
+
+#### 2. **文字显示优化**
+**左上角状态信息**:
+```cpp
+// 简化为英文，避免编码问题
+"ArUco: X markers"     // 绿色，检测数量
+"Matrix: OK/NO"        // 绿色/红色，标定状态
+```
+
+**标记旁边的坐标信息**:
+```cpp
+"ID:X"                 // 绿色，字体1.2，粗度3
+"Set:(x,y)"           // 蓝色，预设坐标，字体0.8
+"Pos:(x,y)"           // 黄色，计算坐标，字体1.0，粗度3
+"No Matrix"           // 红色，未标定状态
+```
+
+#### 3. **字体大小调整**
+- **ID显示**: 0.8 → 1.2，粗度2 → 3
+- **坐标显示**: 0.6 → 1.0，粗度2 → 3  
+- **状态信息**: 统一0.7字体
+
+#### 4. **坐标显示说明**
+**视频流中显示的坐标信息**:
+- **绿色 "ID:X"**: ArUco标记的ID号
+- **蓝色 "Set:(x,y)"**: 预设的地面坐标（如果有设置）
+- **黄色 "Pos:(x,y)"**: **实时计算的地面坐标**（需要矩阵已标定）
+- **红色 "No Matrix"**: 表示单应性矩阵未标定，无法计算坐标
+
+### 调试验证
+1. **检查左上角显示**: 只有两行简洁的英文状态信息
+2. **检查标记坐标**: 黄色"Pos:(x,y)"是您需要的实时坐标
+3. **矩阵状态**: 必须先加载单应性矩阵才能看到坐标
+
+### 下一步操作
+1. 编译程序应用修改
+2. 加载单应性矩阵文件
+3. 启用ArUco测试查看优化后的显示效果
+

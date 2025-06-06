@@ -45,6 +45,7 @@ class I18n {
                 correction_disabled: '相机校正已禁用',
                 
                 // 棋盘格参数
+                calibration_parameters: '标定参数设置',
                 chessboard_parameters: '棋盘格参数',
                 corner_width: '内角点宽度',
                 corner_width_hint: '棋盘格内部角点数量（水平方向）',
@@ -68,19 +69,19 @@ class I18n {
                 next_capture_in: '下次采集',
                 capture_progress: '采集进度',
                 
-                // 坐标变换标定
-                coordinate_transform_calibration: '坐标变换标定',
-                coordinate_calibration_desc: '用于图像坐标与实际地面坐标的转换',
+                // 单应性矩阵标定
+                homography_matrix_calibration: '单应性矩阵标定',
+                homography_calibration_desc: '通过地面格子交叉点进行图像与地面坐标的转换矩阵标定',
+                calibration_operation: '标定操作',
                 enter_calibration_mode: '进入标定模式',
                 exit_calibration_mode: '退出标定模式',
                 compute_homography: '计算单应性矩阵',
                 
-                // ArUco标记
-                aruco_marker_detection: 'ArUco 标记检测',
-                enable_aruco_mode: '启用 ArUco 模式',
-                calibrate_from_aruco: '从 ArUco 标记标定',
-                save_marker_coords: '保存标记坐标',
-                load_marker_coords: '加载标记坐标',
+                // ArUco 测试验证
+                aruco_testing_verification: 'ArUco 测试验证',
+                aruco_testing_desc: '使用ArUco标记验证单应性矩阵标定结果的准确性',
+                enable_aruco_testing: '启用 ArUco 测试',
+                show_aruco_guide: '显示使用指南',
                 
                 // 坐标系设置
                 coordinate_system: '坐标系设置',
@@ -107,7 +108,6 @@ class I18n {
                 websocket_not_connected: 'WebSocket未连接',
                 
                 // 相机标定相关
-                exit_calibration_mode: '退出标定模式',
                 camera_calibration_mode_active: '相机标定模式',
                 switching_camera_calibration_mode: '切换相机标定模式',
                 capturing_calibration_image: '正在采集标定图像',
@@ -201,6 +201,7 @@ class I18n {
                 correction_disabled: 'Camera correction disabled',
                 
                 // 棋盘格参数
+                calibration_parameters: 'Calibration Parameters',
                 chessboard_parameters: 'Chessboard Parameters',
                 corner_width: 'Corner Width',
                 corner_width_hint: 'Number of inner corners in horizontal direction',
@@ -224,19 +225,19 @@ class I18n {
                 next_capture_in: 'Next Capture In',
                 capture_progress: 'Capture Progress',
                 
-                // 坐标变换标定
-                coordinate_transform_calibration: 'Coordinate Transform Calibration',
-                coordinate_calibration_desc: 'Used for conversion between image coordinates and actual ground coordinates',
+                // 单应性矩阵标定
+                homography_matrix_calibration: 'Homography Matrix Calibration',
+                homography_calibration_desc: 'Calibrate the transformation matrix between image coordinates and actual ground coordinates using ground grid intersection points',
+                calibration_operation: 'Calibration Operations',
                 enter_calibration_mode: 'Enter Calibration Mode',
                 exit_calibration_mode: 'Exit Calibration Mode',
                 compute_homography: 'Compute Homography Matrix',
                 
-                // ArUco标记
-                aruco_marker_detection: 'ArUco Marker Detection',
-                enable_aruco_mode: 'Enable ArUco Mode',
-                calibrate_from_aruco: 'Calibrate from ArUco',
-                save_marker_coords: 'Save Marker Coords',
-                load_marker_coords: 'Load Marker Coords',
+                // ArUco 测试验证
+                aruco_testing_verification: 'ArUco Testing Verification',
+                aruco_testing_desc: 'Verify the accuracy of the homography matrix calibration using ArUco markers',
+                enable_aruco_testing: 'Enable ArUco Testing',
+                show_aruco_guide: 'Show Usage Guide',
                 
                 // 坐标系设置
                 coordinate_system: 'Coordinate System',
@@ -263,7 +264,6 @@ class I18n {
                 websocket_not_connected: 'WebSocket Not Connected',
                 
                 // 相机标定相关
-                exit_calibration_mode: 'Exit Calibration Mode',
                 camera_calibration_mode_active: 'Camera Calibration Mode',
                 switching_camera_calibration_mode: 'Switching Camera Calibration Mode',
                 capturing_calibration_image: 'Capturing Calibration Image',

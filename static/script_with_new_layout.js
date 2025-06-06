@@ -15,6 +15,24 @@ class VideoStream {
         this.stopBtn = document.getElementById('stopBtn');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
         
+        // 新布局的按钮元素
+        this.mainFullscreenBtn = document.getElementById('mainFullscreenBtn');
+        this.quickCalibrationBtn = document.getElementById('quickCalibrationBtn');
+        this.quickArUcoBtn = document.getElementById('quickArUcoBtn');
+        this.quickCameraBtn = document.getElementById('quickCameraBtn');
+        this.helpToggleBtn = document.getElementById('helpToggleBtn');
+        this.helpContent = document.getElementById('helpContent');
+        
+        // 新布局的系统状态元素
+        this.connectionStatus = document.getElementById('connectionStatus');
+        this.fpsDisplay = document.getElementById('fpsDisplay');
+        this.resolutionInfo = document.getElementById('resolutionInfo');
+        this.currentModeDisplay = document.getElementById('currentModeDisplay');
+        
+        // 功能导航按钮
+        this.functionNavButtons = document.querySelectorAll('.nav-item');
+        this.configPanels = document.querySelectorAll('.config-panel');
+        
         // Debug related elements
         this.debugToggle = document.getElementById('debugToggle');
         this.debugInfo = document.getElementById('debugInfo');
@@ -162,12 +180,53 @@ class VideoStream {
             });
         }
         
-        // Fullscreen button
+        // Fullscreen button (原有的)
         if (this.fullscreenBtn) {
             this.fullscreenBtn.addEventListener('click', () => {
                 this.toggleFullscreen();
             });
         }
+        
+        // 新布局的主全屏按钮
+        if (this.mainFullscreenBtn) {
+            this.mainFullscreenBtn.addEventListener('click', () => {
+                this.toggleFullscreen();
+            });
+        }
+        
+        // 快速模式切换按钮
+        if (this.quickCalibrationBtn) {
+            this.quickCalibrationBtn.addEventListener('click', () => {
+                this.activateQuickMode('calibration');
+            });
+        }
+        
+        if (this.quickArUcoBtn) {
+            this.quickArUcoBtn.addEventListener('click', () => {
+                this.activateQuickMode('aruco');
+            });
+        }
+        
+        if (this.quickCameraBtn) {
+            this.quickCameraBtn.addEventListener('click', () => {
+                this.activateQuickMode('camera');
+            });
+        }
+        
+        // 帮助区域切换
+        if (this.helpToggleBtn) {
+            this.helpToggleBtn.addEventListener('click', () => {
+                this.toggleHelpSection();
+            });
+        }
+        
+        // 功能导航按钮
+        this.functionNavButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-target');
+                this.switchConfigPanel(target);
+            });
+        });
         
         // Debug information switch
         if (this.debugToggle) {
@@ -336,9 +395,14 @@ class VideoStream {
         }
 
         // ArUco 检测参数设置按钮事件绑定
-                const applyQuickSettingsBtn = document.getElementById('applyQuickSettingsBtn');
-        if (applyQuickSettingsBtn) {
-            applyQuickSettingsBtn.addEventListener('click', () => this.applyQuickArUcoSettings());
+        const setArucoParamsBtn = document.getElementById('setArucoParamsBtn');
+        if (setArucoParamsBtn) {
+            setArucoParamsBtn.addEventListener('click', () => this.setArUcoDetectionParameters());
+        }
+
+        const resetArucoParamsBtn = document.getElementById('resetArucoParamsBtn');
+        if (resetArucoParamsBtn) {
+            resetArucoParamsBtn.addEventListener('click', () => this.resetArUcoDetectionParameters());
         }
 
         // 坐标变换标定相关事件监听器
@@ -956,6 +1020,9 @@ class VideoStream {
                 this.fpsElement.style.fontWeight = 'normal';
             }
         }
+        
+        // 更新新布局的状态显示
+        this.updateNewLayoutStatus();
         
         // 每10秒进行一次FPS分析
         if (!this.lastFpsAnalysis) {
@@ -2163,31 +2230,12 @@ class VideoStream {
         }
     }
     
-    // 修复：全屏切换 - 改为视频全屏
+    // 修复：全屏切换
     toggleFullscreen() {
-        const video = document.getElementById('videoImage');
-        if (!video) {
-            console.error('视频元素未找到');
-            return;
-        }
-        
         if (!document.fullscreenElement) {
-            // 进入视频全屏
-            if (video.requestFullscreen) {
-                video.requestFullscreen().catch(err => {
-                    console.error(`无法进入视频全屏模式: ${err.message}`);
-                    this.showErrorToast('全屏失败', '无法进入视频全屏模式，请检查浏览器权限', 'error', 3000);
-                });
-            } else if (video.mozRequestFullScreen) {
-                video.mozRequestFullScreen();
-            } else if (video.webkitRequestFullscreen) {
-                video.webkitRequestFullscreen();
-            } else if (video.msRequestFullscreen) {
-                video.msRequestFullscreen();
-            } else {
-                console.error('浏览器不支持视频全屏');
-                this.showErrorToast('不支持全屏', '当前浏览器不支持视频全屏功能', 'warning', 3000);
-            }
+            this.video.requestFullscreen().catch(err => {
+                console.error(`Unable to enter full screen mode: ${err.message}`);
+            });
             
             // 如果在标定模式下进入全屏，显示提示
             if (this.calibrationMode) {
@@ -2196,12 +2244,7 @@ class VideoStream {
                 }, 500);
             }
         } else {
-            // 退出全屏
-            if (document.exitFullscreen) {
-                document.exitFullscreen().catch(err => {
-                    console.error(`退出全屏失败: ${err.message}`);
-                });
-            }
+            document.exitFullscreen();
         }
     }
     
@@ -2923,65 +2966,6 @@ class VideoStream {
         this.showTemporaryMessage('检测参数已应用，将在下一帧生效', 'success');
     }
 
-    // 应用快速ArUco设置
-    applyQuickArUcoSettings() {
-        const sensitivitySelect = document.getElementById('arucoSensitivity');
-        
-        if (!sensitivitySelect) {
-            console.error('ArUco sensitivity select not found');
-            return;
-        }
-
-        const sensitivity = sensitivitySelect.value;
-        let params = {};
-
-        // 根据灵敏度预设参数
-        switch (sensitivity) {
-            case 'low':
-                params = {
-                    adaptiveThreshWinSizeMin: 5,
-                    adaptiveThreshWinSizeMax: 25,
-                    adaptiveThreshWinSizeStep: 5,
-                    adaptiveThreshConstant: 7,
-                    cornerRefinementMethod: 0
-                };
-                break;
-            case 'medium':
-                params = {
-                    adaptiveThreshWinSizeMin: 3,
-                    adaptiveThreshWinSizeMax: 35,
-                    adaptiveThreshWinSizeStep: 5,
-                    adaptiveThreshConstant: 5,
-                    cornerRefinementMethod: 1
-                };
-                break;
-            case 'high':
-                params = {
-                    adaptiveThreshWinSizeMin: 3,
-                    adaptiveThreshWinSizeMax: 50,
-                    adaptiveThreshWinSizeStep: 3,
-                    adaptiveThreshConstant: 3,
-                    cornerRefinementMethod: 2
-                };
-                break;
-            default:
-                console.error('Invalid sensitivity value:', sensitivity);
-                return;
-        }
-
-        const message = {
-            action: 'set_aruco_detection_parameters',
-            ...params
-        };
-
-        this.send(message);
-        console.log(`[ArUco] 应用${sensitivity}灵敏度设置:`, params);
-        
-        // 显示设置应用成功提示
-        const sensitivityText = sensitivity === 'low' ? '低' : sensitivity === 'medium' ? '中' : '高';
-        this.showTemporaryMessage(`已应用${sensitivityText}灵敏度检测设置`, 'success');
-    }
-
     // 重置ArUco检测参数到默认值
     resetArUcoDetectionParameters() {
         // 设置为优化后的默认值
@@ -3536,12 +3520,6 @@ class VideoStream {
             return;
         }
 
-        // 防抖逻辑：防止快速重复点击
-        if (this.arucoToggleTimeout) {
-            console.log('🎯 [ARUCO TESTING] 请求太频繁，忽略');
-            return;
-        }
-
         const message = {
             action: 'toggle_aruco_mode'
         };
@@ -3550,11 +3528,6 @@ class VideoStream {
         this.ws.send(JSON.stringify(message));
 
         this.updateStatus('info', '正在切换ArUco测试模式...');
-        
-        // 设置500ms的防抖时间
-        this.arucoToggleTimeout = setTimeout(() => {
-            this.arucoToggleTimeout = null;
-        }, 500);
     }
     
     // 显示ArUco测试指南
@@ -3819,11 +3792,11 @@ class VideoStream {
         return icons[type] || 'ℹ️';
     }
 
-    // 标定专用全屏切换（视频全屏，用于精确点击）
+    // 标定专用全屏切换
     toggleCalibrationFullscreen() {
         if (!document.fullscreenElement) {
             // 进入视频全屏
-            const videoElement = this.videoElement || document.getElementById('videoImage');
+            const videoElement = this.video || document.getElementById('videoImage');
             if (videoElement && videoElement.requestFullscreen) {
                 videoElement.requestFullscreen().then(() => {
                     this.updateCalibrationFullscreenButton(true);
@@ -3890,6 +3863,7 @@ class VideoStream {
         const fullscreenChangeHandler = () => {
             const isFullscreen = !!document.fullscreenElement;
             this.updateCalibrationFullscreenButton(isFullscreen);
+            this.updateMainFullscreenButton(isFullscreen);
             
             if (!isFullscreen) {
                 // 退出全屏时的处理
@@ -3901,6 +3875,308 @@ class VideoStream {
         document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler);
         document.addEventListener('mozfullscreenchange', fullscreenChangeHandler);
         document.addEventListener('MSFullscreenChange', fullscreenChangeHandler);
+    }
+
+    // ===== 新布局专用方法 =====
+    
+    // 激活快速模式
+    activateQuickMode(mode) {
+        // 更新快速模式按钮状态
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const activeBtn = document.querySelector(`[data-mode="${mode}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+        
+        // 更新快速参数区域
+        this.updateQuickParams(mode);
+        
+        // 更新当前模式显示
+        this.updateCurrentModeDisplay(mode);
+        
+        // 自动切换到对应的配置面板
+        const panelMap = {
+            'calibration': 'calibrationConfig',
+            'aruco': 'arucoConfig',
+            'camera': 'cameraConfig'
+        };
+        
+        if (panelMap[mode]) {
+            this.switchConfigPanel(panelMap[mode]);
+        }
+        
+        // 根据模式自动激活功能
+        switch(mode) {
+            case 'calibration':
+                if (!this.calibrationMode) {
+                    this.toggleCoordinateCalibrationMode();
+                }
+                break;
+            case 'aruco':
+                if (!this.arucoMode) {
+                    this.toggleArUcoTestingMode();
+                }
+                break;
+            case 'camera':
+                if (!this.cameraCalibrationMode) {
+                    this.toggleCameraCalibrationMode();
+                }
+                break;
+        }
+    }
+    
+    // 更新快速参数区域
+    updateQuickParams(mode) {
+        const quickParams = document.getElementById('quickParams');
+        if (!quickParams) return;
+        
+        let paramsHTML = '';
+        
+        switch(mode) {
+            case 'calibration':
+                paramsHTML = `
+                    <div class="quick-param-item">
+                        <label>地面坐标 X (mm)</label>
+                        <input type="number" id="quickGroundX" value="0">
+                    </div>
+                    <div class="quick-param-item">
+                        <label>地面坐标 Y (mm)</label>
+                        <input type="number" id="quickGroundY" value="0">
+                    </div>
+                `;
+                break;
+            case 'aruco':
+                paramsHTML = `
+                    <div class="quick-param-item">
+                        <label>标记 ID</label>
+                        <input type="number" id="quickMarkerId" min="0" max="49" value="0">
+                    </div>
+                    <div class="quick-param-item">
+                        <label>地面 X (mm)</label>
+                        <input type="number" id="quickMarkerX" value="0">
+                    </div>
+                    <div class="quick-param-item">
+                        <label>地面 Y (mm)</label>
+                        <input type="number" id="quickMarkerY" value="0">
+                    </div>
+                `;
+                break;
+            case 'camera':
+                paramsHTML = `
+                    <div class="quick-param-item">
+                        <label>棋盘格宽度</label>
+                        <input type="number" id="quickBoardWidth" min="3" max="20" value="8">
+                    </div>
+                    <div class="quick-param-item">
+                        <label>棋盘格高度</label>
+                        <input type="number" id="quickBoardHeight" min="3" max="20" value="5">
+                    </div>
+                    <div class="quick-param-item">
+                        <label>方格尺寸 (mm)</label>
+                        <input type="number" id="quickSquareSize" min="10" max="100" value="25">
+                    </div>
+                `;
+                break;
+        }
+        
+        quickParams.innerHTML = paramsHTML;
+        
+        // 为新的输入框绑定同步事件
+        this.bindQuickParamsSync(mode);
+    }
+    
+    // 绑定快速参数同步
+    bindQuickParamsSync(mode) {
+        switch(mode) {
+            case 'calibration':
+                const quickGroundX = document.getElementById('quickGroundX');
+                const quickGroundY = document.getElementById('quickGroundY');
+                const groundX = document.getElementById('groundX');
+                const groundY = document.getElementById('groundY');
+                
+                if (quickGroundX && groundX) {
+                    quickGroundX.addEventListener('input', () => {
+                        groundX.value = quickGroundX.value;
+                    });
+                    groundX.addEventListener('input', () => {
+                        quickGroundX.value = groundX.value;
+                    });
+                }
+                
+                if (quickGroundY && groundY) {
+                    quickGroundY.addEventListener('input', () => {
+                        groundY.value = quickGroundY.value;
+                    });
+                    groundY.addEventListener('input', () => {
+                        quickGroundY.value = groundY.value;
+                    });
+                }
+                break;
+                
+            case 'aruco':
+                const quickMarkerId = document.getElementById('quickMarkerId');
+                const quickMarkerX = document.getElementById('quickMarkerX');
+                const quickMarkerY = document.getElementById('quickMarkerY');
+                const markerIdInline = document.getElementById('markerIdInline');
+                const markerGroundXInline = document.getElementById('markerGroundXInline');
+                const markerGroundYInline = document.getElementById('markerGroundYInline');
+                
+                if (quickMarkerId && markerIdInline) {
+                    quickMarkerId.addEventListener('input', () => {
+                        markerIdInline.value = quickMarkerId.value;
+                    });
+                }
+                if (quickMarkerX && markerGroundXInline) {
+                    quickMarkerX.addEventListener('input', () => {
+                        markerGroundXInline.value = quickMarkerX.value;
+                    });
+                }
+                if (quickMarkerY && markerGroundYInline) {
+                    quickMarkerY.addEventListener('input', () => {
+                        markerGroundYInline.value = quickMarkerY.value;
+                    });
+                }
+                break;
+                
+            case 'camera':
+                const quickBoardWidth = document.getElementById('quickBoardWidth');
+                const quickBoardHeight = document.getElementById('quickBoardHeight');
+                const quickSquareSize = document.getElementById('quickSquareSize');
+                const boardWidthInput = document.getElementById('boardWidthInput');
+                const boardHeightInput = document.getElementById('boardHeightInput');
+                const squareSizeInput = document.getElementById('squareSizeInput');
+                
+                if (quickBoardWidth && boardWidthInput) {
+                    quickBoardWidth.addEventListener('input', () => {
+                        boardWidthInput.value = quickBoardWidth.value;
+                    });
+                }
+                if (quickBoardHeight && boardHeightInput) {
+                    quickBoardHeight.addEventListener('input', () => {
+                        boardHeightInput.value = quickBoardHeight.value;
+                    });
+                }
+                if (quickSquareSize && squareSizeInput) {
+                    quickSquareSize.addEventListener('input', () => {
+                        squareSizeInput.value = quickSquareSize.value;
+                    });
+                }
+                break;
+        }
+    }
+    
+    // 更新当前模式显示
+    updateCurrentModeDisplay(mode) {
+        const currentModeDisplay = document.getElementById('currentModeDisplay');
+        if (!currentModeDisplay) return;
+        
+        const modeText = currentModeDisplay.querySelector('.mode-text');
+        if (!modeText) return;
+        
+        const modeNames = {
+            'calibration': '📐 单应性矩阵标定模式',
+            'aruco': '🎯 ArUco 测试模式',
+            'camera': '📷 相机内参标定模式'
+        };
+        
+        modeText.textContent = modeNames[mode] || '待机模式';
+    }
+    
+    // 切换配置面板
+    switchConfigPanel(targetPanel) {
+        // 更新导航按钮状态
+        this.functionNavButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-target') === targetPanel) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // 切换面板显示
+        this.configPanels.forEach(panel => {
+            panel.classList.remove('active');
+            if (panel.id === targetPanel) {
+                panel.classList.add('active');
+            }
+        });
+    }
+    
+    // 切换帮助区域
+    toggleHelpSection() {
+        if (!this.helpContent || !this.helpToggleBtn) return;
+        
+        const isCollapsed = this.helpContent.classList.contains('collapsed');
+        const arrow = this.helpToggleBtn.querySelector('.help-arrow');
+        
+        if (isCollapsed) {
+            this.helpContent.classList.remove('collapsed');
+            if (arrow) arrow.textContent = '▲';
+        } else {
+            this.helpContent.classList.add('collapsed');
+            if (arrow) arrow.textContent = '▼';
+        }
+    }
+    
+    // 更新新布局的状态显示
+    updateNewLayoutStatus() {
+        // 更新连接状态
+        if (this.connectionStatus) {
+            this.connectionStatus.textContent = this.connected ? '已连接' : '连接中...';
+            this.connectionStatus.className = `status-indicator ${this.connected ? 'connected' : 'connecting'}`;
+        }
+        
+        // 更新帧率显示
+        if (this.fpsDisplay) {
+            this.fpsDisplay.textContent = `${this.fps} FPS`;
+        }
+        
+        // 更新分辨率信息
+        if (this.resolutionInfo) {
+            // 这里可以从服务端获取分辨率信息
+            this.resolutionInfo.textContent = this.currentResolution || '分辨率检测中...';
+        }
+        
+        // 更新系统设置面板的状态
+        const systemConnectionStatus = document.getElementById('systemConnectionStatus');
+        const systemFPS = document.getElementById('systemFPS');
+        const systemResolution = document.getElementById('systemResolution');
+        
+        if (systemConnectionStatus) {
+            systemConnectionStatus.textContent = this.connected ? '已连接' : '连接中...';
+        }
+        if (systemFPS) {
+            systemFPS.textContent = `${this.fps} FPS`;
+        }
+        if (systemResolution) {
+            systemResolution.textContent = this.currentResolution || '-';
+        }
+    }
+    
+    // 更新主全屏按钮状态（兼容新布局）
+    updateMainFullscreenButton(isFullscreen) {
+        // 更新原有的全屏按钮
+        this.updateCalibrationFullscreenButton(isFullscreen);
+        
+        // 更新新布局的主全屏按钮
+        if (this.mainFullscreenBtn) {
+            const icon = this.mainFullscreenBtn.querySelector('.btn-icon');
+            const text = this.mainFullscreenBtn.querySelector('.btn-text');
+            
+            if (isFullscreen) {
+                this.mainFullscreenBtn.classList.add('active');
+                if (icon) icon.textContent = '❏';
+                if (text) text.textContent = '退出';
+                this.mainFullscreenBtn.title = '退出全屏模式 (ESC)';
+            } else {
+                this.mainFullscreenBtn.classList.remove('active');
+                if (icon) icon.textContent = '⛶';
+                if (text) text.textContent = '全屏';
+                this.mainFullscreenBtn.title = '全屏模式';
+            }
+        }
     }
 }
 

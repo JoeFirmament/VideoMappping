@@ -9,12 +9,23 @@ HomographyMapper::HomographyMapper() : calibrated_(false) {
     markerDictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     detectorParams_ = cv::aruco::DetectorParameters::create();
     
-    // 设置检测参数
+    // 设置检测参数 - 针对远距离检测优化
     detectorParams_->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
-    detectorParams_->adaptiveThreshWinSizeMin = 3;
-    detectorParams_->adaptiveThreshWinSizeMax = 23;
-    detectorParams_->adaptiveThreshWinSizeStep = 10;
-    detectorParams_->adaptiveThreshConstant = 7;
+    
+    // 优化自适应阈值参数，提高远距离小标记的检测能力
+    detectorParams_->adaptiveThreshWinSizeMin = 3;      // 最小窗口保持较小
+    detectorParams_->adaptiveThreshWinSizeMax = 35;     // 增大最大窗口，从23提高到35
+    detectorParams_->adaptiveThreshWinSizeStep = 5;     // 减小步长，从10改为5，更精细
+    detectorParams_->adaptiveThreshConstant = 5;        // 减小常数，从7改为5，降低阈值
+    
+    // 添加更多检测参数优化
+    detectorParams_->minMarkerPerimeterRate = 0.01;     // 降低最小周长比例，从默认0.03降到0.01
+    detectorParams_->maxMarkerPerimeterRate = 8.0;      // 增加最大周长比例，从默认4.0增到8.0
+    detectorParams_->polygonalApproxAccuracyRate = 0.05; // 提高多边形近似精度
+    detectorParams_->minCornerDistanceRate = 0.05;      // 减小最小角点距离比例
+    detectorParams_->minDistanceToBorder = 1;           // 减小到边界的最小距离
+    detectorParams_->markerBorderBits = 1;              // 标记边界位数
+    detectorParams_->minOtsuStdDev = 5.0;               // 降低Otsu标准差阈值
     
     // 初始化坐标系相关参数
     origin_ = cv::Point2f(0.0f, 0.0f);
@@ -233,18 +244,34 @@ cv::Mat HomographyMapper::getInverseHomographyMatrix() const {
 bool HomographyMapper::detectArUcoMarkers(const cv::Mat& frame, std::vector<int>& markerIds, 
                                         std::vector<std::vector<cv::Point2f>>& markerCorners) {
     try {
+        // 清空之前的结果
+        markerIds.clear();
+        markerCorners.clear();
+        
         // 检测 ArUco 标记
         cv::aruco::detectMarkers(frame, markerDictionary_, markerCorners, markerIds, detectorParams_);
         
-        // 如果检测到标记，进行角点细化
         if (markerIds.size() > 0) {
-            // 简化调用，不使用细化函数，因为它需要一个棋盘对象
-            // cv::aruco::refineDetectedMarkers 需要一个 Board 对象，而我们这里只是单独的标记
+            // 简洁的调试信息
+            std::cout << "[ArUco] 检测到 " << markerIds.size() << " 个标记 - IDs: ";
+            for (size_t i = 0; i < markerIds.size(); i++) {
+                std::cout << markerIds[i];
+                if (i < markerIds.size() - 1) std::cout << ", ";
+            }
+            std::cout << std::endl;
+            
             return true;
+        } else {
+            // 只在调试模式下显示未检测到的信息
+            static int noDetectionCounter = 0;
+            noDetectionCounter++;
+            if (noDetectionCounter % 30 == 0) { // 每30帧显示一次，避免日志刷屏
+                std::cout << "[ArUco] 未检测到标记 (已尝试 " << noDetectionCounter << " 帧)" << std::endl;
+            }
         }
         return false;
     } catch (const cv::Exception& e) {
-        std::cerr << "Error detecting ArUco markers: " << e.what() << std::endl;
+        std::cerr << "[ArUco ERROR] 检测异常: " << e.what() << std::endl;
         return false;
     }
 }
@@ -252,61 +279,116 @@ bool HomographyMapper::detectArUcoMarkers(const cv::Mat& frame, std::vector<int>
 void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int>& markerIds, 
                                         const std::vector<std::vector<cv::Point2f>>& markerCorners) {
     if (markerIds.size() > 0) {
-        // 绘制检测到的标记
-        cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
-        
-        // 绘制标记ID和地面坐标（如果有）
+        // 绘制检测到的标记边框和角点
         for (size_t i = 0; i < markerIds.size(); i++) {
             int id = markerIds[i];
-            cv::Point2f center(0, 0);
+            const std::vector<cv::Point2f>& corners = markerCorners[i];
+            
+            // 绘制标记边框（绿色）
+            for (int j = 0; j < 4; j++) {
+                cv::line(frame, corners[j], corners[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+            }
+            
+            // 绘制角点（红色，更大更明显）
+            for (int j = 0; j < 4; j++) {
+                const auto& corner = corners[j];
+                if (j == 0) {
+                    // 第一个角点（左上角）是ArUco的原点，用特殊标记
+                    cv::circle(frame, corner, 10, cv::Scalar(0, 0, 255), -1);  // 更大的红色实心圆
+                    cv::circle(frame, corner, 12, cv::Scalar(255, 255, 255), 3); // 白色外圈
+                    cv::putText(frame, "O", cv::Point(corner.x + 15, corner.y - 5), 
+                               cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);
+                } else {
+                    // 其他角点
+                    cv::circle(frame, corner, 6, cv::Scalar(0, 0, 255), -1);  // 红色实心圆
+                    cv::circle(frame, corner, 8, cv::Scalar(255, 255, 255), 2); // 白色外圈
+                    cv::putText(frame, std::to_string(j), cv::Point(corner.x + 10, corner.y - 5), 
+                               cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+                }
+            }
             
             // 计算标记中心
-            for (const auto& corner : markerCorners[i]) {
+            cv::Point2f center(0, 0);
+            for (const auto& corner : corners) {
                 center += corner;
             }
             center *= 0.25f;
             
-            // 绘制ID
-            cv::putText(frame, "ID:" + std::to_string(id), 
-                       cv::Point(center.x + 10, center.y), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2);
+            // 绘制中心点（蓝色）
+            cv::circle(frame, center, 4, cv::Scalar(255, 0, 0), -1);
             
-            // 如果该标记有对应的地面坐标，显示地面坐标
+            // 在中心点旁边添加说明文字
+            cv::putText(frame, "Center", cv::Point(center.x + 20, center.y + 5), 
+                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+            
+            // 绘制ID（绿色，更大字体）
+            std::string idText = "ID:" + std::to_string(id);
+            cv::putText(frame, idText, 
+                       cv::Point(center.x + 15, center.y - 10), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 255, 0), 3);
+            
+            // 如果该标记有对应的地面坐标，显示地面坐标（蓝色）
             auto it = markerGroundCoordinates_.find(id);
             if (it != markerGroundCoordinates_.end()) {
-                std::string coordText = "(" + std::to_string(int(it->second.x)) + "," + 
+                std::string coordText = "Set:(" + std::to_string(int(it->second.x)) + "," + 
                                       std::to_string(int(it->second.y)) + ")";
                 cv::putText(frame, coordText, 
-                           cv::Point(center.x + 10, center.y + 25), 
-                           cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
+                           cv::Point(center.x + 15, center.y + 15), 
+                           cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 0, 0), 2);
+            }
                 
-                // 如果已标定，显示图像到地面的映射
-                if (calibrated_) {
-                    cv::Point2f groundPoint = imageToGround(center);
-                    std::string mappedText = "-> (" + std::to_string(int(groundPoint.x)) + "," + 
-                                          std::to_string(int(groundPoint.y)) + ")";
-                    cv::putText(frame, mappedText, 
-                               cv::Point(center.x + 10, center.y + 50), 
-                               cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 255), 2);
-                }
+            // 如果已标定，显示图像到地面的映射（黄色，放大字体）
+            if (calibrated_) {
+                cv::Point2f groundPoint = imageToGround(center);
+                std::string mappedText = "Pos:(" + std::to_string(int(groundPoint.x)) + "," + 
+                                      std::to_string(int(groundPoint.y)) + ")";
+                cv::putText(frame, mappedText, 
+                           cv::Point(center.x + 15, center.y + 40), 
+                           cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 255), 3);
+                
+                // 添加调试信息
+                std::cout << "[ArUco Position] Marker " << id << " Ground coord: (" 
+                         << groundPoint.x << "," << groundPoint.y << ")" << std::endl;
+            } else {
+                // 显示未标定状态
+                cv::putText(frame, "No Matrix", 
+                           cv::Point(center.x + 15, center.y + 40), 
+                           cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
             }
         }
+        
+        // 清理左上角显示，使用简洁的英文信息
+        std::string statsText = "ArUco: " + std::to_string(markerIds.size()) + " markers";
+        cv::putText(frame, statsText, cv::Point(10, 30), 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+        
+        // 显示标定状态（简化）
+        std::string calibrationStatus = calibrated_ ? "Matrix: OK" : "Matrix: NO";
+        cv::Scalar statusColor = calibrated_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+        cv::putText(frame, calibrationStatus, cv::Point(10, 60), 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.7, statusColor, 2);
     }
 }
 
 bool HomographyMapper::calibrateFromArUcoMarkers(const cv::Mat& frame, 
                                                const std::map<int, cv::Point2f>& markerGroundCoordinates) {
+    std::cout << "[ArUco 标定] 开始从ArUco标记进行标定..." << std::endl;
+    std::cout << "[ArUco 标定] 已设置地面坐标的标记数量: " << markerGroundCoordinates.size() << std::endl;
+    
     // 检测标记
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
     
     if (!detectArUcoMarkers(frame, markerIds, markerCorners)) {
-        std::cerr << "No ArUco markers detected for calibration." << std::endl;
+        std::cerr << "[ArUco 标定] 错误: 当前帧中未检测到ArUco标记" << std::endl;
         return false;
     }
     
     // 清除现有标定点
     clearCalibrationPoints();
+    
+    // 统计可用于标定的标记数量
+    int usableMarkers = 0;
     
     // 使用标记中心点和地面坐标添加标定点对
     for (size_t i = 0; i < markerIds.size(); i++) {
@@ -323,11 +405,34 @@ bool HomographyMapper::calibrateFromArUcoMarkers(const cv::Mat& frame,
             
             // 添加标定点对
             addCalibrationPoint(center, it->second);
+            usableMarkers++;
+            
+            std::cout << "[ArUco 标定] 标记 " << id << ": 图像坐标(" 
+                     << center.x << "," << center.y << ") -> 地面坐标(" 
+                     << it->second.x << "," << it->second.y << ")" << std::endl;
+        } else {
+            std::cout << "[ArUco 标定] 警告: 标记 " << id << " 未设置地面坐标，跳过" << std::endl;
         }
     }
     
+    if (usableMarkers < 4) {
+        std::cerr << "[ArUco 标定] 错误: 可用标记数量不足 (" << usableMarkers 
+                  << "/4)，需要至少4个已设置地面坐标的标记" << std::endl;
+        return false;
+    }
+    
+    std::cout << "[ArUco 标定] 使用 " << usableMarkers << " 个标记进行标定..." << std::endl;
+    
     // 计算单应性矩阵
-    return computeHomography();
+    bool success = computeHomography();
+    
+    if (success) {
+        std::cout << "[ArUco 标定] ✅ 标定成功！单应性矩阵已计算完成" << std::endl;
+    } else {
+        std::cerr << "[ArUco 标定] ❌ 标定失败！请检查标记分布和坐标设置" << std::endl;
+    }
+    
+    return success;
 }
 
 void HomographyMapper::setMarkerGroundCoordinates(int markerId, const cv::Point2f& groundCoord) {
@@ -554,13 +659,9 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
     bool originInFrame = (imageOrigin_.x >= 0 && imageOrigin_.x < width && 
                           imageOrigin_.y >= 0 && imageOrigin_.y < height);
     
-    // 如果原点在画面内，绘制原点
-    if (originInFrame) {
-        cv::circle(frame, imageOrigin_, 5, cv::Scalar(0, 0, 255), -1);
-    }
-    
     // 绘制坐标轴，即使原点在画面外
-    int axisLength = 200; // 增加坐标轴长度，以确保可见
+    int axisLength = 600; // 进一步增加坐标轴长度，从400提高到600像素
+    int axisThickness = 2; // 恢复原来的粗细2像素
     
     // X轴（红色）
     cv::Point2f xAxisEnd;
@@ -574,7 +675,7 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
         xAxisEnd = groundToImage(groundXAxisEnd);
     }
     
-    // Y轴（绿色）
+    // Y轴（蓝色，从绿色改为蓝色使其更显眼）
     cv::Point2f yAxisEnd;
     if (coordinateType_ == "cartesian") {
         // 地面坐标系中的Y轴终点
@@ -588,8 +689,18 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
     
     // 如果原点在画面内，绘制完整的坐标轴
     if (originInFrame) {
-        cv::line(frame, imageOrigin_, xAxisEnd, cv::Scalar(0, 0, 255), 2);
-        cv::line(frame, imageOrigin_, yAxisEnd, cv::Scalar(0, 255, 0), 2);
+        // 原点用更大的圆标记
+        cv::circle(frame, imageOrigin_, 8, cv::Scalar(0, 0, 255), -1);
+        // X轴（红色，更粗）
+        cv::line(frame, imageOrigin_, xAxisEnd, cv::Scalar(0, 0, 255), axisThickness);
+        // Y轴（蓝色，更粗）
+        cv::line(frame, imageOrigin_, yAxisEnd, cv::Scalar(255, 0, 0), axisThickness);
+        
+        // 添加坐标轴标签
+        cv::putText(frame, "X", cv::Point(xAxisEnd.x + 10, xAxisEnd.y), 
+                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2);
+        cv::putText(frame, "Y", cv::Point(yAxisEnd.x, yAxisEnd.y - 10), 
+                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 0, 0), 2);
     } else {
         // 原点在画面外，绘制坐标轴的可见部分
         // 计算与画面边界的交点
@@ -616,12 +727,12 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
         // 绘制可见的坐标轴部分
         if (xAxisStart.y < height && xAxisEnd.y >= 0 && xAxisEnd.y < height && 
             xAxisEnd.x >= 0 && xAxisEnd.x < width) {
-            cv::line(frame, xAxisStart, xAxisEnd, cv::Scalar(0, 0, 255), 2);
+            cv::line(frame, xAxisStart, xAxisEnd, cv::Scalar(0, 0, 255), axisThickness);
         }
         
         if (yAxisStart.y < height && yAxisEnd.y >= 0 && yAxisEnd.y < height && 
             yAxisEnd.x >= 0 && yAxisEnd.x < width) {
-            cv::line(frame, yAxisStart, yAxisEnd, cv::Scalar(0, 255, 0), 2);
+            cv::line(frame, yAxisStart, yAxisEnd, cv::Scalar(255, 0, 0), axisThickness);
         }
     }
     
@@ -649,3 +760,64 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
         cv::putText(frame, locationText, cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
     }
 }
+
+// ArUco 检测参数设置方法实现
+void HomographyMapper::setDetectionParameters(int adaptiveThreshWinSizeMin, int adaptiveThreshWinSizeMax, 
+                                             int adaptiveThreshWinSizeStep, double adaptiveThreshConstant) {
+    if (detectorParams_) {
+        detectorParams_->adaptiveThreshWinSizeMin = adaptiveThreshWinSizeMin;
+        detectorParams_->adaptiveThreshWinSizeMax = adaptiveThreshWinSizeMax;
+        detectorParams_->adaptiveThreshWinSizeStep = adaptiveThreshWinSizeStep;
+        detectorParams_->adaptiveThreshConstant = adaptiveThreshConstant;
+        
+        std::cout << "[ArUco 参数] 检测参数已更新:" << std::endl;
+        std::cout << "  - 自适应阈值窗口最小值: " << adaptiveThreshWinSizeMin << std::endl;
+        std::cout << "  - 自适应阈值窗口最大值: " << adaptiveThreshWinSizeMax << std::endl;
+        std::cout << "  - 自适应阈值窗口步长: " << adaptiveThreshWinSizeStep << std::endl;
+        std::cout << "  - 自适应阈值常数: " << adaptiveThreshConstant << std::endl;
+    }
+}
+
+void HomographyMapper::setCornerRefinementMethod(int method) {
+    if (detectorParams_) {
+        detectorParams_->cornerRefinementMethod = method;
+        
+        std::string methodName;
+        switch (method) {
+            case cv::aruco::CORNER_REFINE_NONE:
+                methodName = "无角点优化";
+                break;
+            case cv::aruco::CORNER_REFINE_SUBPIX:
+                methodName = "亚像素角点优化";
+                break;
+            case cv::aruco::CORNER_REFINE_CONTOUR:
+                methodName = "轮廓角点优化";
+                break;
+            default:
+                methodName = "未知方法";
+                break;
+        }
+        
+        std::cout << "[ArUco 参数] 角点优化方法已设置为: " << methodName << std::endl;
+    }
+}
+
+void HomographyMapper::getDetectionParameters(int& adaptiveThreshWinSizeMin, int& adaptiveThreshWinSizeMax, 
+                                             int& adaptiveThreshWinSizeStep, double& adaptiveThreshConstant) const {
+    if (detectorParams_) {
+        adaptiveThreshWinSizeMin = detectorParams_->adaptiveThreshWinSizeMin;
+        adaptiveThreshWinSizeMax = detectorParams_->adaptiveThreshWinSizeMax;
+        adaptiveThreshWinSizeStep = detectorParams_->adaptiveThreshWinSizeStep;
+        adaptiveThreshConstant = detectorParams_->adaptiveThreshConstant;
+    }
+}
+
+int HomographyMapper::getCornerRefinementMethod() const {
+    if (detectorParams_) {
+        return detectorParams_->cornerRefinementMethod;
+    }
+    return cv::aruco::CORNER_REFINE_NONE;
+}
+
+
+

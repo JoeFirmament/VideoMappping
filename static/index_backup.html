@@ -98,102 +98,98 @@
                         </div>
                     </div>
                     
-
+                    <!-- 标定参数设置区域 - 移到视频下方 -->
+                    <div class="calibration-params-section">
+                        <h4 class="mb-2" data-i18n="calibration_parameters">标定参数设置</h4>
+                        
+                        <!-- 两行参数布局 -->
+                        <div class="parameter-rows">
+                            <!-- 第一行：基础参数 -->
+                            <div class="parameter-row">
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="corner_width">内角点宽度</label>
+                                    <input type="number" id="boardWidthInput" value="8" class="form-control compact" min="3" max="20" />
+                                </div>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="corner_height">内角点高度</label>
+                                    <input type="number" id="boardHeightInput" value="5" class="form-control compact" min="3" max="20" />
+                                </div>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="square_size">方格大小(mm)</label>
+                                    <input type="number" id="squareSizeInput" value="30" class="form-control compact" min="5" max="200" />
+                                </div>
+                            </div>
+                            
+                            <!-- 第二行：高级参数 -->
+                            <div class="parameter-row">
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="blur_kernel_size">高斯模糊核</label>
+                                    <select id="blurKernelSizeInput" class="form-control compact">
+                                        <option value="0" data-i18n="none">无</option>
+                                        <option value="3">3×3</option>
+                                        <option value="5" selected>5×5</option>
+                                        <option value="7">7×7</option>
+                                        <option value="9">9×9</option>
+                                    </select>
+                                </div>
+                                <div class="form-group compact">
+                                    <label class="form-label" data-i18n="quality_check_level">质量检测级别</label>
+                                    <select id="qualityCheckLevelInput" class="form-control compact">
+                                        <option value="0" data-i18n="strict_quality">严格</option>
+                                        <option value="1" selected data-i18n="balanced_quality">平衡</option>
+                                        <option value="2" data-i18n="permissive_quality">宽松</option>
+                                    </select>
+                                </div>
+                                <div class="form-group compact">
+                                    <button id="setBoardSizeBtn" class="btn btn-secondary btn-sm">
+                                        <span data-i18n="apply_parameters">应用参数</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 标定状态信息 -->
+                        <div class="calibration-status-info">
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="current_session_images">当前会话:</span>
+                                <span id="currentSessionImagesCount" class="info-value">0 张</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="saved_images_count">历史保存:</span>
+                                <span id="savedImagesCount" class="info-value">0 张</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="reprojection_error">重投影误差:</span>
+                                <span id="calibrationErrorDisplay" class="info-value">-</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="control-panel">
-                    <!-- 内参标定功能模块 -->
-                    <div class="function-module">
-                        <div class="module-header">
-                            <h3 class="module-title" data-i18n="camera_intrinsic_calibration">相机内参标定</h3>
-                            <p class="description-text" data-i18n="camera_calibration_desc">用于消除镜头畸变，提高测量精度</p>
-                        </div>
-                        
-                        <!-- 摄像头设置子区域 -->
-                        <div class="sub-section">
-                            <h4 class="sub-title" data-i18n="camera_settings">摄像头设置</h4>
-                            <div class="resolution-info">
-                                <div class="resolution-item">
-                                    <span class="info-label" data-i18n="display_resolution">显示分辨率:</span>
-                                    <span id="displayResolution" class="info-value">960×540</span>
-                                </div>
-                                <div class="resolution-item">
-                                    <span class="info-label" data-i18n="detection_resolution">检测分辨率:</span>
-                                    <span id="detectionResolution" class="info-value">1920×1080</span>
-                                </div>
-                                <div class="resolution-item">
-                                    <span class="info-label" data-i18n="performance_mode">性能模式:</span>
-                                    <span id="performanceMode" class="info-value status-dual">双分辨率</span>
-                                </div>
+                    <div class="control-section compact">
+                        <h3 class="mb-2" data-i18n="camera_settings">摄像头设置</h3>
+                        <div class="resolution-info">
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="display_resolution">显示分辨率:</span>
+                                <span id="displayResolution" class="info-value">960×540</span>
+                            </div>
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="detection_resolution">检测分辨率:</span>
+                                <span id="detectionResolution" class="info-value">1920×1080</span>
+                            </div>
+                            <div class="resolution-item">
+                                <span class="info-label" data-i18n="performance_mode">性能模式:</span>
+                                <span id="performanceMode" class="info-value status-dual">双分辨率</span>
                             </div>
                         </div>
-                        
-                        <!-- 标定参数设置子区域 -->
-                        <div class="sub-section calibration-params-section">
-                            <h4 class="sub-title" data-i18n="calibration_parameters">标定参数设置</h4>
-                            
-                            <!-- 参数表单 -->
-                            <div class="parameter-rows">
-                                <!-- 第一行：基础参数 -->
-                                <div class="parameter-row">
-                                    <div class="form-group">
-                                        <label class="form-label" data-i18n="corner_width">内角点宽度</label>
-                                        <input type="number" id="boardWidthInput" value="8" class="form-control" min="3" max="20" />
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label" data-i18n="corner_height">内角点高度</label>
-                                        <input type="number" id="boardHeightInput" value="5" class="form-control" min="3" max="20" />
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label" data-i18n="square_size">方格大小(mm)</label>
-                                        <input type="number" id="squareSizeInput" value="30" class="form-control" min="5" max="200" />
-                                    </div>
-                                </div>
-                                
-                                <!-- 第二行：高级参数 -->
-                                <div class="parameter-row">
-                                    <div class="form-group">
-                                        <label class="form-label" data-i18n="blur_kernel_size">高斯模糊核</label>
-                                        <select id="blurKernelSizeInput" class="form-control">
-                                            <option value="0" data-i18n="none">无</option>
-                                            <option value="3">3×3</option>
-                                            <option value="5" selected>5×5</option>
-                                            <option value="7">7×7</option>
-                                            <option value="9">9×9</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label" data-i18n="quality_check_level">质量检测级别</label>
-                                        <select id="qualityCheckLevelInput" class="form-control">
-                                            <option value="0" data-i18n="strict_quality">严格</option>
-                                            <option value="1" selected data-i18n="balanced_quality">平衡</option>
-                                            <option value="2" data-i18n="permissive_quality">宽松</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <button id="setBoardSizeBtn" class="btn btn-secondary">
-                                            <span data-i18n="apply_parameters">应用参数</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 标定状态信息 -->
-                            <div class="calibration-status-info">
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="current_session_images">当前会话:</span>
-                                    <span id="currentSessionImagesCount" class="info-value">0 张</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="saved_images_count">历史保存:</span>
-                                    <span id="savedImagesCount" class="info-value">0 张</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="reprojection_error">重投影误差:</span>
-                                    <span id="calibrationErrorDisplay" class="info-value">-</span>
-                                </div>
-                            </div>
-                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2" data-i18n="camera_intrinsic_calibration">相机内参标定</h3>
+                        <p class="section-description compact" data-i18n="camera_calibration_desc">用于消除镜头畸变，提高测量精度</p>
                         
                         <!-- 标定流程说明 -->
                         <div class="calibration-flow-info">
@@ -202,10 +198,10 @@
                             </small>
                         </div>
                         
-                        <!-- 标定操作区域 -->
-                        <div class="calibration-operations">
+                        <!-- 标定操作按钮 - 简化布局 -->
+                        <div class="calibration-operations mb-3">
                             <!-- 主要操作按钮 -->
-                            <div class="control-row">
+                            <div class="control-row mb-2">
                                 <button id="toggleCameraCalibrationBtn" class="btn btn-primary">
                                     <span data-i18n="camera_calibration_mode">相机标定模式</span>
                                 </button>
@@ -215,19 +211,19 @@
                             </div>
                             
                             <!-- 自动采集区域 -->
-                            <div class="auto-capture-section">
-                                <h5 class="compact-title" data-i18n="auto_capture_settings">自动采集设置</h5>
-                                <div class="control-row">
+                            <div class="auto-capture-section mb-3">
+                                <h5 data-i18n="auto_capture_settings">自动采集设置</h5>
+                                <div class="control-row mb-2">
                                     <div class="form-group">
                                         <label class="form-label" data-i18n="auto_capture_time">时间(秒)</label>
-                                        <input type="number" id="autoCaptureTimeInput" value="10" class="form-control" min="1" max="60" />
+                                        <input type="number" id="autoCaptureTimeInput" value="10" class="form-control compact" min="1" max="60" />
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" data-i18n="auto_capture_interval">间隔(毫秒)</label>
-                                        <input type="number" id="autoCaptureIntervalInput" value="500" class="form-control" min="100" max="2000" />
+                                        <input type="number" id="autoCaptureIntervalInput" value="500" class="form-control compact" min="100" max="2000" />
                                     </div>
                                 </div>
-                                <div class="control-row">
+                                <div class="control-row mb-2">
                                     <button id="startAutoCalibrationBtn" class="btn btn-success" disabled>
                                         <span data-i18n="start_auto_capture">开始自动采集</span>
                                     </button>
@@ -253,7 +249,7 @@
                             </div>
                             
                             <!-- 标定执行和保存 -->
-                            <div class="control-row">
+                            <div class="control-row mb-2">
                                 <button id="performCameraCalibrationBtn" class="btn btn-success" disabled>
                                     <span data-i18n="perform_calibration">执行标定</span>
                                 </button>
@@ -266,7 +262,7 @@
                             </div>
                             
                             <!-- 相机校正控制 -->
-                            <div class="control-row">
+                            <div class="control-row mb-2">
                                 <div class="camera-correction-control">
                                     <label class="switch-container">
                                         <input type="checkbox" id="enableCameraCorrectionToggle" disabled>
@@ -278,87 +274,88 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 单应性矩阵功能模块 -->
-                    <div class="function-module">
-                        <div class="module-header">
-                            <h3 class="module-title" data-i18n="homography_matrix_calibration">单应性矩阵标定</h3>
-                            <p class="description-text" data-i18n="homography_calibration_desc">通过地面格子交叉点进行图像与地面坐标的转换矩阵标定</p>
-                        </div>
-                        
-                        <!-- 标定操作子区域 -->
-                        <div class="sub-section">
-                            <h4 class="sub-title" data-i18n="calibration_operation">标定操作</h4>
-                            <div class="control-row">
-                                <button id="toggleCalibrationBtn" class="btn btn-primary">
-                                    <span data-i18n="enter_calibration_mode">进入标定模式</span>
-                                </button>
-                                <button id="computeHomographyBtn" class="btn btn-success" disabled>
-                                    <span data-i18n="compute_homography">计算单应性矩阵</span>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- ArUco 测试验证子区域 -->
-                        <div class="sub-section">
-                            <h4 class="sub-title" data-i18n="aruco_testing_verification">ArUco 测试验证</h4>
-                            <p class="description-text" data-i18n="aruco_testing_desc">使用ArUco标记验证单应性矩阵标定结果的准确性</p>
-                            <div class="control-row">
-                                <button id="toggleArUcoBtn" class="btn btn-primary">
-                                    <span data-i18n="enable_aruco_testing">启用 ArUco 测试</span>
-                                </button>
-                                <button id="showArUcoGuideBtn" class="btn btn-info">
-                                    <span data-i18n="show_aruco_guide">显示使用指南</span>
-                                </button>
-                            </div>
                             
-                            <!-- ArUco 测试状态显示 -->
-                            <div id="arucoTestingStatus" class="aruco-testing-status" style="display: none;">
-                                <div class="status-card">
-                                    <h5>📍 检测状态</h5>
-                                    <div class="status-info">
-                                        <span class="status-label">检测到的标记：</span>
-                                        <span id="detectedMarkersTestCount" class="status-value">0</span>
-                                    </div>
-                                    <div class="status-info">
-                                        <span class="status-label">矩阵状态：</span>
-                                        <span id="homographyStatusTest" class="status-value">未标定</span>
-                                    </div>
-                                </div>
-                            </div>
+
                         </div>
                         
-                        <!-- 坐标系设置子区域 -->
-                        <div class="sub-section">
-                            <h4 class="sub-title" data-i18n="coordinate_system">坐标系设置</h4>
-                            <div class="control-row">
-                                <button id="setOriginBtn" class="btn btn-primary">
-                                    <span data-i18n="set_origin">设置原点</span>
-                                </button>
-                                <button id="toggleCoordTypeBtn" class="btn btn-secondary">
-                                    <span data-i18n="toggle_coord_type">切换坐标类型</span>
-                                </button>
-                            </div>
-                            <div class="coordinate-system-info">
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="coord_type">坐标类型:</span>
-                                    <span id="coordTypeDisplay" class="info-value">直角坐标</span>
+
+                        
+
+                    </div>
+                    
+                    <hr class="section-divider">
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2" data-i18n="homography_matrix_calibration">单应性矩阵标定</h3>
+                        <p class="section-description" data-i18n="homography_calibration_desc">通过地面格子交叉点进行图像与地面坐标的转换矩阵标定</p>
+                        <div class="control-row">
+                            <button id="toggleCalibrationBtn" class="btn btn-primary">
+                                <span data-i18n="enter_calibration_mode">进入标定模式</span>
+                            </button>
+                            <button id="computeHomographyBtn" class="btn btn-success" disabled>
+                                <span data-i18n="compute_homography">计算单应性矩阵</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2" data-i18n="aruco_testing_verification">ArUco 测试验证</h3>
+                        <p class="section-description" data-i18n="aruco_testing_desc">使用ArUco标记验证单应性矩阵标定结果的准确性</p>
+                        <div class="control-row">
+                            <button id="toggleArUcoBtn" class="btn btn-primary">
+                                <span data-i18n="enable_aruco_testing">启用 ArUco 测试</span>
+                            </button>
+                            <button id="showArUcoGuideBtn" class="btn btn-info">
+                                <span data-i18n="show_aruco_guide">显示使用指南</span>
+                            </button>
+                        </div>
+                        
+                        <!-- ArUco 测试状态显示 -->
+                        <div id="arucoTestingStatus" class="aruco-testing-status mt-2" style="display: none;">
+                            <div class="status-card">
+                                <h5>📍 检测状态</h5>
+                                <div class="status-info">
+                                    <span class="status-label">检测到的标记：</span>
+                                    <span id="detectedMarkersTestCount" class="status-value">0</span>
                                 </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="origin_position">原点位置:</span>
-                                    <span id="originDisplay" class="info-value">(0, 0)</span>
+                                <div class="status-info">
+                                    <span class="status-label">矩阵状态：</span>
+                                    <span id="homographyStatusTest" class="status-value">未标定</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- 调试信息模块 -->
-                    <div class="function-module">
-                        <div class="module-header">
-                            <h3 class="module-title" data-i18n="debug_information">调试信息</h3>
+                    <hr class="section-divider">
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2" data-i18n="coordinate_system">坐标系设置</h3>
+                        <div class="control-row">
+                            <button id="setOriginBtn" class="btn btn-primary">
+                                <span data-i18n="set_origin">设置原点</span>
+                            </button>
+                            <button id="toggleCoordTypeBtn" class="btn btn-secondary">
+                                <span data-i18n="toggle_coord_type">切换坐标类型</span>
+                            </button>
                         </div>
+                        <div class="coordinate-system-info mt-2">
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="coord_type">坐标类型:</span>
+                                <span id="coordTypeDisplay" class="info-value">直角坐标</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" data-i18n="origin_position">原点位置:</span>
+                                <span id="originDisplay" class="info-value">(0, 0)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
+                    
+                    <div class="control-section">
+                        <h3 class="mb-2" data-i18n="debug_information">调试信息</h3>
                         <div class="debug-panel">
                             <div class="debug-toggle">
                                 <label class="switch">
@@ -439,9 +436,9 @@
             
             <div id="arucoPanel" class="aruco-panel" style="display: none;">
                 <h3>🎯 ArUco 测试验证</h3>
-                <p>💡 在画面中放置ArUco标记，验证单应性矩阵准确性</p>
+                <p>💡 <strong>使用说明</strong>：在画面中放置ArUco标记，系统将显示其检测信息和计算出的地面坐标，用于验证单应性矩阵的准确性。</p>
                 
-                <!-- 测试状态 -->
+                <!-- 测试状态显示 -->
                 <div class="testing-status-display">
                     <div class="status-row">
                         <div class="status-item">
@@ -455,7 +452,7 @@
                     </div>
                 </div>
                 
-                <!-- 检测结果 -->
+                <!-- 检测到的标记信息 -->
                 <div class="detected-markers-info">
                     <h4>📋 检测结果</h4>
                     <div id="markersDetectionList" class="markers-list">
@@ -463,20 +460,51 @@
                     </div>
                 </div>
                 
-                <!-- 快速参数调整 -->
-                <div class="aruco-quick-settings">
-                    <h4>⚙️ 快速设置</h4>
-                    <div class="quick-params">
+                <!-- ArUco 检测参数设置 -->
+                <div class="aruco-detection-settings">
+                    <h4>⚙️ 检测参数设置</h4>
+                    <div class="detection-params-grid">
                         <div class="form-group">
-                            <label>检测灵敏度:</label>
-                            <select id="arucoSensitivity" class="form-input">
-                                <option value="low">低</option>
-                                <option value="medium" selected>中</option>
-                                <option value="high">高</option>
+                            <label>自适应阈值窗口最小值:</label>
+                            <input type="number" id="arucoAdaptiveThreshWinSizeMin" class="form-input" min="3" max="15" value="3">
+                        </div>
+                        <div class="form-group">
+                            <label>自适应阈值窗口最大值:</label>
+                            <input type="number" id="arucoAdaptiveThreshWinSizeMax" class="form-input" min="15" max="50" value="35">
+                        </div>
+                        <div class="form-group">
+                            <label>自适应阈值窗口步长:</label>
+                            <input type="number" id="arucoAdaptiveThreshWinSizeStep" class="form-input" min="1" max="20" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label>自适应阈值常数:</label>
+                            <input type="number" id="arucoAdaptiveThreshConstant" class="form-input" min="1" max="20" step="0.1" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label>角点优化方法:</label>
+                            <select id="arucoCornerRefinementMethod" class="form-input">
+                                <option value="0">无优化</option>
+                                <option value="1" selected>亚像素优化</option>
+                                <option value="2">轮廓优化</option>
                             </select>
                         </div>
-                        <button id="applyQuickSettingsBtn" class="btn btn-secondary btn-sm">应用设置</button>
                     </div>
+                    <div class="params-buttons">
+                        <button id="setArucoParamsBtn" class="btn btn-secondary">应用检测参数</button>
+                        <button id="resetArucoParamsBtn" class="btn btn-secondary">重置为默认值</button>
+                    </div>
+                </div>
+                
+                <!-- 使用提示 -->
+                <div class="testing-tips mt-3">
+                    <h5>📝 测试提示</h5>
+                    <ul>
+                        <li>确保已完成单应性矩阵标定或加载了矩阵文件</li>
+                        <li>将ArUco标记放置在地面的已知位置进行验证</li>
+                        <li>标记检测信息包括：ID、角点坐标、中心点坐标</li>
+                        <li>系统会自动计算并显示标记的地面坐标</li>
+                        <li>通过比较计算坐标与实际坐标来验证标定精度</li>
+                    </ul>
                 </div>
             </div>
             
@@ -517,6 +545,54 @@
     <!-- 然后加载主程序 -->
     <script src="script.js"></script>
 
-
+    <!-- 操作指南面板 - 放在页面底部 -->
+    <div id="operationGuide" class="operation-guide-bottom">
+        <div class="guide-header">
+            <h4>📋 VideoMapping 操作指南</h4>
+            <button id="closeGuideBtn" class="close-guide-btn">×</button>
+        </div>
+        <div class="guide-content">
+            <div class="guide-grid">
+                <div class="guide-section">
+                    <strong>🔴 ArUco标记检测</strong>
+                    <ul>
+                        <li><span class="highlight">测量点</span>：测量蓝色中心点（Center）到地面坐标原点的距离</li>
+                        <li><span class="highlight">四个角点</span>：红色圆圈标记，最大的"O"是ArUco原点</li>
+                        <li><span class="highlight">绿色ID</span>：标记识别号</li>
+                        <li><span class="highlight">坐标轴</span>：红色X轴，蓝色Y轴</li>
+                    </ul>
+                    
+                    <strong>远距离优化：</strong>
+                    <span class="optimization-tips">最大窗口35→50，步长5→3，常数5→3</span>
+                </div>
+                
+                <div class="guide-section">
+                    <strong>📐 相机内参标定</strong>
+                    <ul>
+                        <li><span class="highlight">准备</span>：打印棋盘格（推荐8×5内角点）</li>
+                        <li><span class="highlight">采集</span>：进入标定模式，多角度拍摄15-20张</li>
+                        <li><span class="highlight">标定</span>：执行标定，重投影误差<0.5为优秀</li>
+                        <li><span class="highlight">应用</span>：保存结果，启用校正功能</li>
+                    </ul>
+                    
+                    <strong>质量提示：</strong>
+                    <span class="optimization-tips">覆盖全画面，避免模糊，多种角度</span>
+                </div>
+                
+                <div class="guide-section">
+                    <strong>📝 操作流程</strong>
+                    <ol>
+                        <li>相机标定 → 消除畸变</li>
+                        <li>ArUco检测 → 自动标定</li>
+                        <li>坐标测试 → 验证精度</li>
+                    </ol>
+                    
+                    <div class="important-note">
+                        <strong>⚠️ 重要：</strong>测量ArUco标记时，请测量<strong>蓝色中心点</strong>到地面坐标原点的距离，不是角点！
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

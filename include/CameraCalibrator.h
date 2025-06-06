@@ -101,6 +101,7 @@ private:
     // 辅助函数
     void calculateObjectPoints();
     void initializeExistingImageCount();  // 初始化已有图片数量
+    bool isMatrixEqual(const cv::Mat& mat1, const cv::Mat& mat2);  // 矩阵比较辅助函数
 
     // 图像保存控制
     bool saveCalibrationImages;

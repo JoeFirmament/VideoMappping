@@ -122,23 +122,22 @@ int main(int argc, char** argv) {
                 // 处理标定模式切换请求
                 else if (action == "toggle_calibration_mode") {
                     // 切换标定模式
-                    static bool calibration_mode = false;
-                    calibration_mode = !calibration_mode;
+                    bool calibrationMode = streamer.toggleCalibrationMode();
                     
-                    std::cout << "Calibration mode: " << (calibration_mode ? "ON" : "OFF") << std::endl;
+                    std::cout << "📐 [COORDINATE CALIBRATION] 标定模式: " << (calibrationMode ? "启用" : "禁用") << std::endl;
                     
                     // 发送响应
                     conn.send_text("{\"type\":\"calibration_mode_changed\",\"enabled\":"
-                                + std::string(calibration_mode ? "true" : "false") + "}");
+                                + std::string(calibrationMode ? "true" : "false") + "}");
                 }
                 // 添加标定点
                 else if (action == "add_calibration_point") {
                     float img_x = 0, img_y = 0, ground_x = 0, ground_y = 0;
                     
-                    // 解析图像坐标
-                    size_t img_x_pos = data.find("\"img_x\":");
+                    // 解析图像坐标 - 修正参数名
+                    size_t img_x_pos = data.find("\"image_x\":");
                     if (img_x_pos != std::string::npos) {
-                        size_t start = img_x_pos + 8;
+                        size_t start = img_x_pos + 10;
                         size_t end = data.find(",", start);
                         if (end != std::string::npos) {
                             std::string val_str = data.substr(start, end - start);
@@ -146,9 +145,9 @@ int main(int argc, char** argv) {
                         }
                     }
                     
-                    size_t img_y_pos = data.find("\"img_y\":");
+                    size_t img_y_pos = data.find("\"image_y\":");
                     if (img_y_pos != std::string::npos) {
-                        size_t start = img_y_pos + 8;
+                        size_t start = img_y_pos + 10;
                         size_t end = data.find(",", start);
                         if (end != std::string::npos) {
                             std::string val_str = data.substr(start, end - start);
@@ -177,13 +176,13 @@ int main(int argc, char** argv) {
                         }
                     }
                     
-                    std::cout << "Adding calibration point: Image(" << img_x << "," << img_y << ") -> Ground(" 
+                    std::cout << "📍 [ADD POINT] 添加标定点: 图像(" << img_x << "," << img_y << ") -> 地面(" 
                               << ground_x << "," << ground_y << ")" << std::endl;
                     
                     // 添加标定点
                     if (streamer.addCalibrationPoint(cv::Point2f(img_x, img_y), cv::Point2f(ground_x, ground_y))) {
                         // 发送成功响应
-                        conn.send_text("{\"type\":\"calibration_point_added\"}");
+                        conn.send_text("{\"type\":\"calibration_point_added\",\"success\":true}");
                     } else {
                         // 发送错误响应
                         conn.send_text("{\"type\":\"error\",\"message\":\"Failed to add calibration point\"}");
@@ -221,43 +220,16 @@ int main(int argc, char** argv) {
                             matrixJson << "]";
                             
                             // 发送标定结果消息，包含完整矩阵数据
-                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"manual\",\"homography_matrix\":"
+                            conn.send_text("{\"type\":\"homography_computed\",\"success\":true,\"homography_matrix\":"
                                         + matrixJson.str() + "}");
                         } else {
-                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"manual\"}");
+                            conn.send_text("{\"type\":\"homography_computed\",\"success\":true}");
                         }
                     } else {
-                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to compute homography. Need at least 4 points.\"}");
+                        conn.send_text("{\"type\":\"homography_computed\",\"success\":false,\"error\":\"需要至少4个标定点才能计算单应性矩阵\"}");
                     }
                 }
-                // 从 ArUco 标记进行标定
-                else if (action == "calibrate_from_aruco") {
-                    if (streamer.calibrateFromArUcoMarkers()) {
-                        // 获取单应性矩阵数据
-                        cv::Mat homographyMatrix = streamer.getHomographyMatrix();
-                        
-                        if (!homographyMatrix.empty()) {
-                            // 将矩阵转换为JSON格式的字符串
-                            std::stringstream matrixJson;
-                            matrixJson << "[";
-                            for (int i = 0; i < homographyMatrix.rows; i++) {
-                                for (int j = 0; j < homographyMatrix.cols; j++) {
-                                    if (i > 0 || j > 0) matrixJson << ",";
-                                    matrixJson << homographyMatrix.at<double>(i, j);
-                                }
-                            }
-                            matrixJson << "]";
-                            
-                            // 发送标定结果消息，包含完整矩阵数据
-                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"aruco\",\"homography_matrix\":"
-                                        + matrixJson.str() + "}");
-                        } else {
-                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"aruco\"}");
-                        }
-                    } else {
-                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to calibrate from ArUco markers. Need at least 4 markers with ground coordinates.\"}");
-                    }
-                }
+
                 // 保存标定结果
                 else if (action == "save_homography") {
                     std::string filename = "";
@@ -275,9 +247,9 @@ int main(int argc, char** argv) {
                     }
                     
                     if (streamer.saveHomography(filename)) {
-                        conn.send_text("{\"type\":\"homography_saved\"}");
+                        conn.send_text("{\"type\":\"homography_saved\",\"success\":true}");
                     } else {
-                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to save homography\"}");
+                        conn.send_text("{\"type\":\"homography_saved\",\"success\":false,\"error\":\"保存标定结果失败\"}");
                     }
                 }
                 // 加载标定结果
@@ -297,9 +269,42 @@ int main(int argc, char** argv) {
                     }
                     
                     if (streamer.loadHomography(filename)) {
-                        conn.send_text("{\"type\":\"homography_loaded\"}");
+                        // 获取加载的单应性矩阵数据
+                        cv::Mat homographyMatrix = streamer.getHomographyMatrix();
+                        auto calibrationPoints = streamer.getCalibrationPoints();
+                        
+                        std::stringstream response;
+                        response << "{\"type\":\"homography_loaded\",\"success\":true";
+                        
+                        // 添加矩阵数据
+                        if (!homographyMatrix.empty()) {
+                            response << ",\"homography_matrix\":[";
+                            for (int i = 0; i < homographyMatrix.rows; i++) {
+                                for (int j = 0; j < homographyMatrix.cols; j++) {
+                                    if (i > 0 || j > 0) response << ",";
+                                    response << homographyMatrix.at<double>(i, j);
+                                }
+                            }
+                            response << "]";
+                        }
+                        
+                        // 添加标定点数据
+                        if (!calibrationPoints.empty()) {
+                            response << ",\"calibration_points\":[";
+                            for (size_t i = 0; i < calibrationPoints.size(); i++) {
+                                if (i > 0) response << ",";
+                                response << "{\"image_x\":" << calibrationPoints[i].first.x
+                                        << ",\"image_y\":" << calibrationPoints[i].first.y
+                                        << ",\"ground_x\":" << calibrationPoints[i].second.x
+                                        << ",\"ground_y\":" << calibrationPoints[i].second.y << "}";
+                            }
+                            response << "]";
+                        }
+                        
+                        response << "}";
+                        conn.send_text(response.str());
                     } else {
-                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to load homography\"}");
+                        conn.send_text("{\"type\":\"homography_loaded\",\"success\":false,\"error\":\"加载标定结果失败\"}");
                     }
                 }
                 // 图像坐标转地面坐标
@@ -454,7 +459,115 @@ int main(int argc, char** argv) {
                         conn.send_text(response);
                     }
                     
-                } else if (action == "save_camera_calibration") {
+                }
+                // ArUco 模式切换
+                else if (action == "toggle_aruco_mode") {
+                    bool arucoMode = streamer.toggleArUcoMode();
+                    
+                    // 发送ArUco模式状态更新
+                    bool homographyLoaded = !streamer.getHomographyMatrix().empty();
+                    std::string response = "{\"type\":\"aruco_mode_status\","
+                                         "\"aruco_mode\":" + std::string(arucoMode ? "true" : "false") + ","
+                                         "\"enabled\":" + std::string(arucoMode ? "true" : "false") + ","
+                                         "\"homography_loaded\":" + std::string(homographyLoaded ? "true" : "false") + ","
+                                         "\"detected_markers\":0}";
+                    conn.send_text(response);
+                    
+                    std::cout << "[ArUco] 模式切换: " << (arucoMode ? "启用" : "禁用") << std::endl;
+                }
+                // 设置ArUco标记地面坐标
+                else if (action == "set_marker_coordinates") {
+                    int markerId = 0;
+                    float x = 0, y = 0;
+                    
+                    // 解析标记ID
+                    size_t id_pos = data.find("\"marker_id\":");
+                    if (id_pos != std::string::npos) {
+                        size_t start = id_pos + 12;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { markerId = std::stoi(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析X坐标
+                    size_t x_pos = data.find("\"x\":");
+                    if (x_pos != std::string::npos) {
+                        size_t start = x_pos + 4;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { x = std::stof(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析Y坐标
+                    size_t y_pos = data.find("\"y\":");
+                    if (y_pos != std::string::npos) {
+                        size_t start = y_pos + 4;
+                        size_t end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { y = std::stof(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 设置标记坐标
+                    bool success = streamer.setMarkerGroundCoordinates(markerId, cv::Point2f(x, y));
+                    
+                    if (success) {
+                        conn.send_text("{\"type\":\"marker_coordinates_set\",\"success\":true}");
+                        std::cout << "[ArUco] 设置标记 " << markerId << " 地面坐标: (" << x << "," << y << ")" << std::endl;
+                    } else {
+                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to set marker coordinates\"}");
+                    }
+                }
+                // 从ArUco标记标定
+                else if (action == "calibrate_from_aruco_markers") {
+                    if (streamer.calibrateFromArUcoMarkers()) {
+                        // 获取单应性矩阵数据
+                        cv::Mat homographyMatrix = streamer.getHomographyMatrix();
+                        
+                        if (!homographyMatrix.empty()) {
+                            // 将矩阵转换为JSON格式的字符串
+                            std::stringstream matrixJson;
+                            matrixJson << "[";
+                            for (int i = 0; i < homographyMatrix.rows; i++) {
+                                for (int j = 0; j < homographyMatrix.cols; j++) {
+                                    if (i > 0 || j > 0) matrixJson << ",";
+                                    matrixJson << homographyMatrix.at<double>(i, j);
+                                }
+                            }
+                            matrixJson << "]";
+                            
+                            // 发送标定结果消息，包含完整矩阵数据
+                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"aruco\",\"homography_matrix\":"
+                                        + matrixJson.str() + "}");
+                        } else {
+                            conn.send_text("{\"type\":\"calibration_result\",\"success\":true,\"source\":\"aruco\"}");
+                        }
+                    } else {
+                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to calibrate from ArUco markers. Need at least 4 markers with ground coordinates.\"}");
+                    }
+                }
+                // 保存ArUco标记坐标
+                else if (action == "save_marker_coordinates") {
+                    if (streamer.saveMarkerCoordinates()) {
+                        conn.send_text("{\"type\":\"marker_coordinates_saved\",\"success\":true}");
+                    } else {
+                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to save marker coordinates\"}");
+                    }
+                }
+                // 加载ArUco标记坐标
+                else if (action == "load_marker_coordinates") {
+                    if (streamer.loadMarkerCoordinates()) {
+                        conn.send_text("{\"type\":\"marker_coordinates_loaded\",\"success\":true}");
+                    } else {
+                        conn.send_text("{\"type\":\"error\",\"message\":\"Failed to load marker coordinates\"}");
+                    }
+                }
+                else if (action == "save_camera_calibration") {
                     // 保存标定结果
                     bool success = streamer.saveCameraCalibrationData("");
                     
@@ -735,6 +848,75 @@ int main(int argc, char** argv) {
                                          "\"square_size\":" + std::to_string(square_size) + ","
                                          "\"blur_kernel_size\":" + std::to_string(blur_kernel_size) + "}";
                     conn.send_text(response);
+                }
+                // ArUco 检测参数设置
+                else if (action == "set_aruco_detection_parameters") {
+                    int minSize = 3, maxSize = 35, step = 5, refinement = 1;
+                    double constant = 5.0;
+                    
+                    // 解析最小窗口大小
+                    size_t min_pos = data.find("\"adaptiveThreshWinSizeMin\":");
+                    if (min_pos != std::string::npos) {
+                        size_t start = min_pos + 27;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { minSize = std::stoi(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析最大窗口大小
+                    size_t max_pos = data.find("\"adaptiveThreshWinSizeMax\":");
+                    if (max_pos != std::string::npos) {
+                        size_t start = max_pos + 27;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { maxSize = std::stoi(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析窗口步长
+                    size_t step_pos = data.find("\"adaptiveThreshWinSizeStep\":");
+                    if (step_pos != std::string::npos) {
+                        size_t start = step_pos + 28;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { step = std::stoi(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析阈值常数
+                    size_t const_pos = data.find("\"adaptiveThreshConstant\":");
+                    if (const_pos != std::string::npos) {
+                        size_t start = const_pos + 25;
+                        size_t end = data.find(",", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { constant = std::stod(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 解析角点优化方法
+                    size_t refine_pos = data.find("\"cornerRefinementMethod\":");
+                    if (refine_pos != std::string::npos) {
+                        size_t start = refine_pos + 24;
+                        size_t end = data.find("}", start);
+                        if (end != std::string::npos) {
+                            std::string val_str = data.substr(start, end - start);
+                            try { refinement = std::stoi(val_str); } catch (...) {}
+                        }
+                    }
+                    
+                    // 应用检测参数
+                    streamer.setArUcoDetectionParameters(minSize, maxSize, step, constant);
+                    streamer.setArUcoCornerRefinementMethod(refinement);
+                    
+                    conn.send_text("{\"type\":\"aruco_parameters_set\",\"success\":true}");
+                    std::cout << "[ArUco] 检测参数已更新: 窗口(" << minSize << "-" << maxSize 
+                             << "), 步长(" << step << "), 常数(" << constant 
+                             << "), 优化方法(" << refinement << ")" << std::endl;
                 }
             } catch (const std::exception& e) {
                 std::cout << "Error processing message: " << e.what() << std::endl;

@@ -6,6 +6,7 @@
 #include <regex>       // 添加正则表达式支持
 #include <iomanip>     // 添加iomanip头文件
 #include <limits>      // 添加limits头文件
+#include <chrono>      // 添加chrono头文件
 
 CameraCalibrator::CameraCalibrator() 
     : boardSize(8, 5)  // 默认9x6的棋盘格，角点数是8x5
@@ -633,58 +634,137 @@ bool CameraCalibrator::loadCalibrationData(const std::string& filename) {
     fs["square_size"] >> squareSize;
     fs["avg_reprojection_error"] >> totalError;
     
+    // 添加调试信息
+    std::cout << "📊 [CALIBRATION LOAD] Loaded calibration data:" << std::endl;
+    std::cout << "  📐 Camera Matrix: " << cameraMatrix.rows << "x" << cameraMatrix.cols << ", type: " << cameraMatrix.type() << std::endl;
+    std::cout << "  🔧 Distortion Coeffs: " << distCoeffs.rows << "x" << distCoeffs.cols << ", type: " << distCoeffs.type() << std::endl;
+    std::cout << "  📏 Board Size: " << boardSize.width << "x" << boardSize.height << std::endl;
+    std::cout << "  📐 Square Size: " << squareSize << "m" << std::endl;
+    std::cout << "  📊 Reprojection Error: " << totalError << " pixels" << std::endl;
+    
+    // 验证加载的数据
+    if (cameraMatrix.empty() || distCoeffs.empty()) {
+        std::cerr << "❌ [CALIBRATION LOAD] Empty matrices loaded" << std::endl;
+        return false;
+    }
+    
     calibrated = true;
     fs.release();
     return true;
 }
 
 cv::Mat CameraCalibrator::undistortImage(const cv::Mat& image) {
-    if (!calibrated) {
-        std::cerr << "Camera is not calibrated yet!" << std::endl;
-        return image;
-    }
-    
-    // 验证输入图像
+    // 快速验证输入
     if (image.empty()) {
-        std::cerr << "Error: Input image is empty for undistortion!" << std::endl;
-        return image;
+        std::cerr << "❌ [UNDISTORT] Input image is empty" << std::endl;
+        return cv::Mat();
     }
     
-    // 验证标定参数的有效性
-    if (cameraMatrix.empty() || distCoeffs.empty()) {
-        std::cerr << "Error: Camera matrix or distortion coefficients are empty!" << std::endl;
-        return image;
+    // 快速验证标定状态
+    if (!calibrated) {
+        std::cerr << "❌ [UNDISTORT] Camera not calibrated" << std::endl;
+        return cv::Mat();
     }
     
-    // 验证相机矩阵的尺寸和类型
-    if (cameraMatrix.rows != 3 || cameraMatrix.cols != 3 || cameraMatrix.type() != CV_64F) {
-        std::cerr << "Error: Invalid camera matrix size or type!" << std::endl;
-        return image;
+    // 快速验证矩阵有效性
+    if (cameraMatrix.empty() || cameraMatrix.rows != 3 || cameraMatrix.cols != 3) {
+        std::cerr << "❌ [UNDISTORT] Invalid camera matrix" << std::endl;
+        return cv::Mat();
     }
     
-    // 验证畸变系数的类型
-    if (distCoeffs.type() != CV_64F) {
-        std::cerr << "Error: Invalid distortion coefficients type!" << std::endl;
-        return image;
+    // 修复：更灵活的畸变系数验证
+    if (distCoeffs.empty()) {
+        std::cerr << "❌ [UNDISTORT] Empty distortion coefficients" << std::endl;
+        return cv::Mat();
+    }
+    
+    // OpenCV支持不同数量的畸变系数：4, 5, 8, 12, 14
+    int distCoeffCount = distCoeffs.rows * distCoeffs.cols;
+    if (distCoeffCount < 4) {
+        std::cerr << "❌ [UNDISTORT] Invalid distortion coefficients count: " << distCoeffCount << " (minimum 4)" << std::endl;
+        std::cerr << "  📐 Distortion shape: " << distCoeffs.rows << "x" << distCoeffs.cols << std::endl;
+        return cv::Mat();
+    }
+    
+            // 移除重复的调试信息 - 已经验证有效
+    
+    // 验证矩阵数据类型
+    if (cameraMatrix.type() != CV_64F && cameraMatrix.type() != CV_32F) {
+        std::cerr << "❌ [UNDISTORT] Invalid camera matrix type: " << cameraMatrix.type() << std::endl;
+        return cv::Mat();
+    }
+    
+    if (distCoeffs.type() != CV_64F && distCoeffs.type() != CV_32F) {
+        std::cerr << "❌ [UNDISTORT] Invalid distortion coefficients type: " << distCoeffs.type() << std::endl;
+        return cv::Mat();
+    }
+    
+    // 验证输入图像属性
+    if (image.type() != CV_8UC3 && image.type() != CV_8UC1) {
+        std::cerr << "❌ [UNDISTORT] Unsupported image type: " << image.type() << std::endl;
+        return cv::Mat();
+    }
+    
+    if (image.cols <= 0 || image.rows <= 0) {
+        std::cerr << "❌ [UNDISTORT] Invalid image dimensions: " << image.cols << "x" << image.rows << std::endl;
+        return cv::Mat();
     }
     
     try {
-        cv::Mat undistorted;
-        cv::undistort(image, undistorted, cameraMatrix, distCoeffs);
+        // 性能优化：使用静态变量缓存undistort映射表
+        static cv::Mat cachedMap1, cachedMap2;
+        static cv::Size cachedSize(-1, -1);
+        static cv::Mat cachedCameraMatrix, cachedDistCoeffs;
+        static bool mapsInitialized = false;
         
-        // 验证去畸变结果
-        if (undistorted.empty()) {
-            std::cerr << "Error: Undistortion resulted in empty image!" << std::endl;
-            return image;
+        cv::Size currentSize(image.cols, image.rows);
+        
+        // 检查是否需要重新初始化映射表
+        bool needReinitialize = false;
+        if (!mapsInitialized || 
+            cachedSize != currentSize ||
+            !isMatrixEqual(cachedCameraMatrix, cameraMatrix) ||
+            !isMatrixEqual(cachedDistCoeffs, distCoeffs)) {
+            needReinitialize = true;
         }
         
-        return undistorted;
+        if (needReinitialize) {
+            auto initStart = std::chrono::high_resolution_clock::now();
+            
+            // 计算undistort映射表（这是最耗时的操作，但只需要计算一次）
+            cv::initUndistortRectifyMap(
+                cameraMatrix, distCoeffs, cv::Mat(),
+                cameraMatrix, currentSize, CV_16SC2,
+                cachedMap1, cachedMap2
+            );
+            
+            // 更新缓存
+            cachedSize = currentSize;
+            cachedCameraMatrix = cameraMatrix.clone();
+            cachedDistCoeffs = distCoeffs.clone();
+            mapsInitialized = true;
+            
+            auto initEnd = std::chrono::high_resolution_clock::now();
+            double initTime = std::chrono::duration<double, std::milli>(initEnd - initStart).count();
+            
+            std::cout << "📊 [UNDISTORT] Map initialization time: " << initTime << "ms" << std::endl;
+        }
+        
+        // 执行快速重映射
+        cv::Mat undistortedImage;
+        cv::remap(image, undistortedImage, cachedMap1, cachedMap2, cv::INTER_LINEAR);
+        
+        return undistortedImage;
+        
     } catch (const cv::Exception& e) {
-        std::cerr << "OpenCV error in undistortImage: " << e.what() << std::endl;
-        return image; // 返回原始图像作为备用
+        std::cerr << "❌ [UNDISTORT] OpenCV exception: " << e.what() << std::endl;
+        return image.clone(); // 返回原图像作为备选
     } catch (const std::exception& e) {
-        std::cerr << "Error in undistortImage: " << e.what() << std::endl;
-        return image; // 返回原始图像作为备用
+        std::cerr << "❌ [UNDISTORT] Standard exception: " << e.what() << std::endl;
+        return image.clone(); // 返回原图像作为备选
+    } catch (...) {
+        std::cerr << "❌ [UNDISTORT] Unknown exception occurred" << std::endl;
+        return image.clone(); // 返回原图像作为备选
     }
 }
 
@@ -1127,4 +1207,11 @@ void CameraCalibrator::filterCalibrationImages() {
     objectPoints = filteredObjectPoints;
     
     std::cout << "Filtered result: " << imagePoints.size() << " valid images remaining" << std::endl;
+}
+
+bool CameraCalibrator::isMatrixEqual(const cv::Mat& mat1, const cv::Mat& mat2) {
+    if (mat1.size() != mat2.size() || mat1.type() != mat2.type()) {
+        return false;
+    }
+    return cv::countNonZero(mat1 != mat2) == 0;
 }
