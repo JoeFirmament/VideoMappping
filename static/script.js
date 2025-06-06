@@ -188,6 +188,22 @@ class VideoStream {
             });
         }
         
+        // Download camera calibration button
+        this.downloadCameraCalibrationBtn = document.getElementById('downloadCameraCalibrationBtn');
+        if (this.downloadCameraCalibrationBtn) {
+            this.downloadCameraCalibrationBtn.addEventListener('click', () => {
+                this.downloadCameraCalibration();
+            });
+        }
+        
+        // Download homography calibration button
+        this.downloadHomographyCalibrationBtn = document.getElementById('downloadHomographyCalibrationBtn');
+        if (this.downloadHomographyCalibrationBtn) {
+            this.downloadHomographyCalibrationBtn.addEventListener('click', () => {
+                this.downloadHomographyCalibration();
+            });
+        }
+        
         // Camera calibration related event listeners
         if (this.toggleCameraCalibrationBtn) {
             this.toggleCameraCalibrationBtn.addEventListener('click', () => {
@@ -517,6 +533,12 @@ class VideoStream {
                         } else if (message.type === 'aruco_detection_update') {
                             // ArUco实时检测更新
                             this.handleArUcoDetectionUpdate(message);
+                        } else if (message.type === 'aruco_testing_results') {
+                            // ArUco测试结果更新（用于显示检测到的标记详细信息）
+                            this.updateArUcoTestingResults(message);
+                        } else if (message.type === 'camera_calibration_download') {
+                            // 相机内参标定文件下载
+                            this.handleCameraCalibrationDownload(message);
                         } else {
                             // 其他消息类型简化记录
                             if (this.debugMode) {
@@ -2000,6 +2022,10 @@ class VideoStream {
             this.saveCameraCalibrationBtn.disabled = true;
         }
         
+        if (this.downloadCameraCalibrationBtn) {
+            this.downloadCameraCalibrationBtn.disabled = !this.cameraCalibrated; // 根据标定状态启用/禁用
+        }
+        
         if (this.startAutoCalibrationBtn) {
             this.startAutoCalibrationBtn.disabled = true;
         }
@@ -2844,6 +2870,12 @@ class VideoStream {
                 detectionStatusDisplay.classList.add('status-active');
             }
         }
+        
+        // 如果包含标记详细信息，也更新检测结果列表
+        if (data.markers !== undefined) {
+            console.log('📍 [ARUCO MARKERS] 更新标记详细信息:', data.markers);
+            this.updateArUcoTestingResults(data);
+        }
     }
 
     handleMarkerCoordinatesSet(data) {
@@ -3394,6 +3426,11 @@ class VideoStream {
             this.saveCalibrationBtn.disabled = !this.calibrated;
         }
 
+        // 更新下载按钮状态
+        if (this.downloadHomographyCalibrationBtn) {
+            this.downloadHomographyCalibrationBtn.disabled = !this.calibrated;
+        }
+
         console.log(`📊 [CALIBRATION STATUS] 标定点数量: ${pointCount}, 可计算: ${canCompute}, 已标定: ${this.calibrated}`);
 
         // 更新状态消息
@@ -3901,6 +3938,91 @@ class VideoStream {
         document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler);
         document.addEventListener('mozfullscreenchange', fullscreenChangeHandler);
         document.addEventListener('MSFullscreenChange', fullscreenChangeHandler);
+    }
+
+    // 下载相机内参标定文件
+    downloadCameraCalibration() {
+        // 请求后端提供相机内参标定文件
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                action: 'download_camera_calibration'
+            }));
+            this.showTemporaryMessage('正在准备相机内参标定文件...', 'info');
+            console.log('📥 [DOWNLOAD] 请求下载相机内参标定文件');
+        } else {
+            this.showTemporaryMessage('WebSocket连接未建立，无法下载文件', 'error');
+        }
+    }
+
+    // 下载单应性矩阵标定文件
+    downloadHomographyCalibration() {
+        // 检查是否有矩阵数据
+        if (!this.rawHomographyMatrix) {
+            this.showTemporaryMessage('单应性矩阵数据不可用，请先进行标定。', 'warning');
+            return;
+        }
+
+        // Create export data
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            description: '单应性矩阵标定文件（从图像到地面坐标的转换）',
+            file_type: 'homography_calibration',
+            homography_matrix: this.rawHomographyMatrix,
+            calibration_points: this.calibrationPoints || [],
+            point_count: this.calibrationPoints ? this.calibrationPoints.length : 0,
+            version: '1.0'
+        };
+
+        // Convert to JSON format
+        const jsonData = JSON.stringify(exportData, null, 2);
+
+        // Create blob and download
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `homography_calibration_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+
+        // Trigger download
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+
+        this.showTemporaryMessage('已下载单应性矩阵标定文件', 'success');
+        console.log('📥 [DOWNLOAD] Homography calibration file downloaded');
+    }
+
+    // 处理相机内参标定文件下载响应
+    handleCameraCalibrationDownload(data) {
+        if (data.success && data.file_content) {
+            // 创建下载链接
+            const blob = new Blob([data.file_content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename || `camera_calibration_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+
+            // 触发下载
+            document.body.appendChild(a);
+            a.click();
+
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+
+            this.showTemporaryMessage('已下载相机内参标定文件', 'success');
+            console.log('📥 [DOWNLOAD] Camera calibration file downloaded:', data.filename);
+        } else {
+            this.showTemporaryMessage(data.error || '下载相机内参标定文件失败', 'error');
+            console.error('❌ [DOWNLOAD] Camera calibration download failed:', data.error);
+        }
     }
 }
 

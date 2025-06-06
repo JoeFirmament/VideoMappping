@@ -76,6 +76,7 @@ public:
     // 获取标定结果
     cv::Mat getCameraMatrix() const;
     cv::Mat getDistCoeffs() const;
+    bool getCameraCalibrationMatrices(cv::Mat& cameraMatrix, cv::Mat& distCoeffs) const;
     
     // 新增：相机标定会话管理
     void startNewCameraCalibrationSession();  // 开始新的标定会话

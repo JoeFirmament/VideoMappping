@@ -35,8 +35,9 @@
                 <div id="status" class="status-panel" data-i18n="status_connecting">状态: 正在连接服务器...</div>
             </div>
             
-            <div class="grid grid-2">
-                <div>
+            <div class="main-layout">
+                <!-- 视频流区域 - 占据主要空间 -->
+                <div class="video-section">
                     <div class="video-container">
                         <img id="video" alt="Video Stream" style="max-width: 100%; height: auto; border-radius: 8px;">
                         <div class="fullscreen-container">
@@ -97,11 +98,11 @@
                             <span id="latency" class="stat-value">-</span>
                         </div>
                     </div>
-                    
-
                 </div>
                 
-                <div class="control-panel">
+                <!-- 功能控制区域 - 水平布局 -->
+                <div class="controls-section">
+                    <div class="controls-grid">
                     <!-- 内参标定功能模块 -->
                     <div class="function-module">
                         <div class="module-header">
@@ -265,6 +266,13 @@
                                 </button>
                             </div>
                             
+                            <!-- 文件操作 -->
+                            <div class="control-row">
+                                <button id="downloadCameraCalibrationBtn" class="btn btn-info" disabled>
+                                    <span data-i18n="download_camera_calibration">📥 下载内参标定文件</span>
+                                </button>
+                            </div>
+                            
                             <!-- 相机校正控制 -->
                             <div class="control-row">
                                 <div class="camera-correction-control">
@@ -299,6 +307,11 @@
                                     <span data-i18n="compute_homography">计算单应性矩阵</span>
                                 </button>
                             </div>
+                            <div class="control-row">
+                                <button id="downloadHomographyCalibrationBtn" class="btn btn-info" disabled>
+                                    <span data-i18n="download_homography_calibration">📥 下载单应性矩阵文件</span>
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- ArUco 测试验证子区域 -->
@@ -330,155 +343,111 @@
                             </div>
                         </div>
                         
-                        <!-- 坐标系设置子区域 -->
-                        <div class="sub-section">
-                            <h4 class="sub-title" data-i18n="coordinate_system">坐标系设置</h4>
-                            <div class="control-row">
-                                <button id="setOriginBtn" class="btn btn-primary">
-                                    <span data-i18n="set_origin">设置原点</span>
-                                </button>
-                                <button id="toggleCoordTypeBtn" class="btn btn-secondary">
-                                    <span data-i18n="toggle_coord_type">切换坐标类型</span>
+                        <!-- 单应性矩阵标定面板 - 嵌入在功能区内 -->
+                        <div id="calibrationPanel" class="calibration-panel-embedded" style="display: none;">
+                            <div class="calibration-header">
+                                <h4>📐 标定详细操作</h4>
+                                <button id="calibrationFullscreenBtn" class="calibration-fullscreen-btn" title="全屏模式 - 提高点击选择精度">
+                                    <span class="fullscreen-icon">⛶</span>
+                                    <span class="fullscreen-text">全屏</span>
                                 </button>
                             </div>
-                            <div class="coordinate-system-info">
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="coord_type">坐标类型:</span>
-                                    <span id="coordTypeDisplay" class="info-value">直角坐标</span>
+                            <p class="section-description">💡 <strong>使用说明</strong>：点击视频中的地面格子交叉点，然后输入该点的实际地面坐标。至少需要 4 个点。</p>
+                            
+                            <div class="calibration-controls">
+                                <div class="ground-coordinates">
+                                    <label>地面坐标 X (毫米):</label>
+                                    <input type="number" id="groundX" class="form-input" value="0" placeholder="例如: 0">
+                                    <label>地面坐标 Y (毫米):</label>
+                                    <input type="number" id="groundY" class="form-input" value="0" placeholder="例如: 0">
                                 </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="origin_position">原点位置:</span>
-                                    <span id="originDisplay" class="info-value">(0, 0)</span>
+                                
+                                <div class="calibration-buttons">
+                                    <button id="removeLastPointBtn" class="btn btn-danger">移除最后一个点</button>
+                                    <button id="clearPointsBtn" class="btn btn-danger">清除所有点</button>
+                                </div>
+                                
+                                <div class="calibration-file">
+                                    <button id="saveCalibrationBtn" class="btn btn-success">保存矩阵文件</button>
+                                    <button id="loadCalibrationBtn" class="btn btn-primary">加载矩阵文件</button>
+                                </div>
+                            </div>
+                            
+                            <div class="calibration-points">
+                                <h5>📍 标定点列表</h5>
+                                <div id="pointsList"></div>
+                            </div>
+                            
+                            <!-- 标定建议 -->
+                            <div class="calibration-tips">
+                                <h5>💡 标定建议</h5>
+                                <ul>
+                                    <li><strong>保持1920×1080分辨率</strong>，确保单应性矩阵计算精度</li>
+                                    <li>选择地面格子的交叉点作为标定点，位置更准确</li>
+                                    <li>标定点应尽量分布在画面的四个角落和中心</li>
+                                    <li>测量地面坐标时要保持一致的坐标系</li>
+                                    <li>建议使用至少6-8个标定点以提高精度</li>
+                                    <li><strong>点击上方全屏按钮</strong>，提高点击选择精度</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- ArUco 测试验证面板 - 嵌入在功能区内 -->
+                        <div id="arucoPanel" class="aruco-panel-embedded" style="display: none;">
+                            <div class="aruco-header">
+                                <h4>🎯 ArUco 测试详细操作</h4>
+                            </div>
+                            <p class="section-description">💡 在画面中放置ArUco标记，验证单应性矩阵准确性</p>
+                            
+                            <!-- 测试状态 -->
+                            <div class="testing-status-display">
+                                <div class="status-row">
+                                    <div class="status-item">
+                                        <span class="status-label">矩阵状态：</span>
+                                        <span id="matrixStatusDisplay" class="status-value matrix-not-ready">未标定</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="status-label">检测状态：</span>
+                                        <span id="detectionStatusDisplay" class="status-value">等待检测</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 检测结果 -->
+                            <div class="detected-markers-info">
+                                <h5>📋 检测结果</h5>
+                                <div id="markersDetectionList" class="markers-list">
+                                    <p class="no-markers">暂未检测到ArUco标记</p>
+                                </div>
+                            </div>
+                            
+                            <!-- 快速参数调整 -->
+                            <div class="aruco-quick-settings">
+                                <h5>⚙️ 快速设置</h5>
+                                <div class="quick-params">
+                                    <div class="form-group">
+                                        <label>检测灵敏度:</label>
+                                        <select id="arucoSensitivity" class="form-input">
+                                            <option value="low">低</option>
+                                            <option value="medium" selected>中</option>
+                                            <option value="high">高</option>
+                                        </select>
+                                    </div>
+                                    <button id="applyQuickSettingsBtn" class="btn btn-secondary btn-sm">应用设置</button>
                                 </div>
                             </div>
                         </div>
+
                     </div>
                     
-                    <!-- 调试信息模块 -->
-                    <div class="function-module">
-                        <div class="module-header">
-                            <h3 class="module-title" data-i18n="debug_information">调试信息</h3>
-                        </div>
-                        <div class="debug-panel">
-                            <div class="debug-toggle">
-                                <label class="switch">
-                                    <input type="checkbox" id="debugToggle">
-                                    <span class="slider round"></span>
-                                </label>
-                                <span data-i18n="show_debug_info">显示调试信息</span>
-                            </div>
-                            <div id="debugInfo" class="debug-info" style="display: none;">
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="homography_matrix">单应性矩阵:</span>
-                                    <pre id="homographyMatrix" class="info-value matrix">-</pre>
-                                    <button id="exportMatrixBtn" class="btn btn-sm btn-secondary">
-                                        <span data-i18n="export_matrix">导出矩阵</span>
-                                    </button>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="detected_markers">检测到的标记:</span>
-                                    <span id="detectedMarkersCount" class="info-value">0</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label" data-i18n="last_operation">最近操作:</span>
-                                    <span id="lastOperation" class="info-value">-</span>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             </div>
             
-            <div id="calibrationPanel" class="calibration-panel" style="display: none;">
-                <div class="calibration-header">
-                    <h3>📐 单应性矩阵标定</h3>
-                    <button id="calibrationFullscreenBtn" class="calibration-fullscreen-btn" title="全屏模式 - 提高点击选择精度">
-                        <span class="fullscreen-icon">⛶</span>
-                        <span class="fullscreen-text">全屏</span>
-                    </button>
-                </div>
-                <p>💡 <strong>使用说明</strong>：点击视频中的地面格子交叉点，然后输入该点的实际地面坐标。至少需要 4 个点。</p>
-                
-                <div class="calibration-controls">
-                    <div class="ground-coordinates">
-                        <label>地面坐标 X (毫米):</label>
-                        <input type="number" id="groundX" class="form-input" value="0" placeholder="例如: 0">
-                        <label>地面坐标 Y (毫米):</label>
-                        <input type="number" id="groundY" class="form-input" value="0" placeholder="例如: 0">
-                    </div>
-                    
-                    <div class="calibration-buttons">
-                        <button id="removeLastPointBtn" class="btn btn-danger">移除最后一个点</button>
-                        <button id="clearPointsBtn" class="btn btn-danger">清除所有点</button>
-                    </div>
-                    
-                    <div class="calibration-file">
-                        <button id="saveCalibrationBtn" class="btn btn-success">保存矩阵文件</button>
-                        <button id="loadCalibrationBtn" class="btn btn-primary">加载矩阵文件</button>
-                    </div>
-                </div>
-                
-                <div class="calibration-points">
-                    <h4>📍 标定点列表</h4>
-                    <div id="pointsList"></div>
-                </div>
-                
-                <!-- 标定建议 -->
-                <div class="calibration-tips mt-3">
-                    <h5>💡 标定建议</h5>
-                    <ul>
-                        <li><strong>保持1920×1080分辨率</strong>，确保单应性矩阵计算精度</li>
-                        <li>选择地面格子的交叉点作为标定点，位置更准确</li>
-                        <li>标定点应尽量分布在画面的四个角落和中心</li>
-                        <li>测量地面坐标时要保持一致的坐标系</li>
-                        <li>建议使用至少6-8个标定点以提高精度</li>
-                        <li><strong>点击上方全屏按钮</strong>，提高点击选择精度</li>
-                    </ul>
-                </div>
-            </div>
+
             
-            <div id="arucoPanel" class="aruco-panel" style="display: none;">
-                <h3>🎯 ArUco 测试验证</h3>
-                <p>💡 在画面中放置ArUco标记，验证单应性矩阵准确性</p>
-                
-                <!-- 测试状态 -->
-                <div class="testing-status-display">
-                    <div class="status-row">
-                        <div class="status-item">
-                            <span class="status-label">矩阵状态：</span>
-                            <span id="matrixStatusDisplay" class="status-value matrix-not-ready">未标定</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">检测状态：</span>
-                            <span id="detectionStatusDisplay" class="status-value">等待检测</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 检测结果 -->
-                <div class="detected-markers-info">
-                    <h4>📋 检测结果</h4>
-                    <div id="markersDetectionList" class="markers-list">
-                        <p class="no-markers">暂未检测到ArUco标记</p>
-                    </div>
-                </div>
-                
-                <!-- 快速参数调整 -->
-                <div class="aruco-quick-settings">
-                    <h4>⚙️ 快速设置</h4>
-                    <div class="quick-params">
-                        <div class="form-group">
-                            <label>检测灵敏度:</label>
-                            <select id="arucoSensitivity" class="form-input">
-                                <option value="low">低</option>
-                                <option value="medium" selected>中</option>
-                                <option value="high">高</option>
-                            </select>
-                        </div>
-                        <button id="applyQuickSettingsBtn" class="btn btn-secondary btn-sm">应用设置</button>
-                    </div>
-                </div>
-            </div>
+
             
             <div id="coordinateTestPanel" class="coordinate-test-panel" style="display: none;">
                 <h3>坐标转换测试</h3>

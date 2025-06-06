@@ -918,6 +918,68 @@ int main(int argc, char** argv) {
                              << "), 步长(" << step << "), 常数(" << constant 
                              << "), 优化方法(" << refinement << ")" << std::endl;
                 }
+                // 处理相机内参标定文件下载请求
+                else if (action == "download_camera_calibration") {
+                    std::cout << "📥 [DOWNLOAD] 接收到相机内参标定文件下载请求" << std::endl;
+                    
+                    // 检查标定文件是否存在
+                    std::string calibrationFilePath = "/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml";
+                    std::ifstream file(calibrationFilePath);
+                    
+                    if (!file.good()) {
+                        // 标定文件不存在
+                        std::string response = "{\"type\":\"camera_calibration_download\","
+                                             "\"success\":false,"
+                                             "\"error\":\"相机标定文件不存在，请先进行相机标定\"}";
+                        conn.send_text(response);
+                        std::cout << "❌ [DOWNLOAD] 标定文件不存在: " << calibrationFilePath << std::endl;
+                    } else {
+                        try {
+                            // 读取标定文件内容
+                            std::stringstream buffer;
+                            buffer << file.rdbuf();
+                            file.close();
+                            
+                            std::string fileContent = buffer.str();
+                            
+                            // 对文件内容进行转义处理（处理JSON中的特殊字符）
+                            std::string escapedContent;
+                            for (char c : fileContent) {
+                                switch (c) {
+                                    case '"': escapedContent += "\\\""; break;
+                                    case '\\': escapedContent += "\\\\"; break;
+                                    case '\n': escapedContent += "\\n"; break;
+                                    case '\r': escapedContent += "\\r"; break;
+                                    case '\t': escapedContent += "\\t"; break;
+                                    default: escapedContent += c; break;
+                                }
+                            }
+                            
+                            // 生成文件名
+                            auto now = std::chrono::system_clock::now();
+                            auto time_t = std::chrono::system_clock::to_time_t(now);
+                            std::stringstream filename;
+                            filename << "camera_calibration_" << time_t << ".xml";
+                            
+                            // 发送响应
+                            std::string response = "{\"type\":\"camera_calibration_download\","
+                                                 "\"success\":true,"
+                                                 "\"filename\":\"" + filename.str() + "\","
+                                                 "\"file_content\":\"" + escapedContent + "\"}";
+                            conn.send_text(response);
+                            
+                            std::cout << "✅ [DOWNLOAD] 相机内参标定文件下载完成: " << filename.str() 
+                                     << " (大小: " << fileContent.length() << " bytes)" << std::endl;
+                            
+                        } catch (const std::exception& e) {
+                            std::string response = "{\"type\":\"camera_calibration_download\","
+                                                 "\"success\":false,"
+                                                 "\"error\":\"读取标定文件时发生错误: " + std::string(e.what()) + "\"}";
+                            conn.send_text(response);
+                            std::cout << "❌ [DOWNLOAD] 读取标定文件时发生错误: " << e.what() << std::endl;
+                        }
+                    }
+                }
             } catch (const std::exception& e) {
                 std::cout << "Error processing message: " << e.what() << std::endl;
             }

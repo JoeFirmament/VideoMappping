@@ -120,7 +120,7 @@ body {
     gap: 8px;
 }
 
-/* ===== 网格布局 ===== */
+/* ===== 布局系统 ===== */
 .grid {
     display: grid;
     gap: 32px;
@@ -128,6 +128,73 @@ body {
 
 .grid-2 {
     grid-template-columns: 1fr 400px;
+}
+
+/* 新的主布局 - 视频在上，功能在下 */
+.main-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.video-section {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(233, 236, 239, 0.6);
+}
+
+.controls-section {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(233, 236, 239, 0.6);
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* 功能模块在新布局中的样式 */
+.controls-grid .function-module {
+    height: fit-content;
+    margin-bottom: 0;
+}
+
+/* 为两个功能区设置不同的背景色 */
+.controls-grid .function-module:nth-child(1) {
+    background: rgba(240, 248, 255, 0.6); /* 淡蓝色背景 - 内参标定 */
+    border-left: 4px solid rgba(74, 144, 226, 0.4);
+    border-right: 3px dashed rgba(144, 156, 173, 0.5); /* 右侧虚线分隔 */
+    padding-right: 1.5rem; /* 增加右侧内边距 */
+}
+
+.controls-grid .function-module:nth-child(2) {
+    background: rgba(240, 253, 244, 0.6); /* 淡绿色背景 - 单应性矩阵标定 */
+    border-left: 4px solid rgba(34, 197, 94, 0.4);
+    padding-left: 1.5rem; /* 增加左侧内边距 */
+}
+
+/* 功能模块标题样式 - 居中、变大、加粗 */
+.function-module .module-title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.8rem 0;
+    color: #2c3e50;
+    letter-spacing: 0.5px;
+}
+
+/* 功能模块描述文本也居中 */
+.function-module .description-text {
+    text-align: center;
+    margin-bottom: 1.2rem;
+    color: #6c757d;
+    font-style: italic;
 }
 
 /* ===== 控制面板样式 ===== */
@@ -402,10 +469,24 @@ body {
 /* ===== 视频显示区域 ===== */
 .video-container {
     background: rgba(0, 0, 0, 0.8);
-    border-radius: 3px;
+    border-radius: 8px;
     overflow: hidden;
     position: relative;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: none;
+}
+
+/* 在新布局中，视频容器占据更多空间 */
+.video-section .video-container {
+    margin-bottom: 0;
+}
+
+.video-section #video {
+    width: 100%;
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
 }
 
 .video-canvas {
@@ -670,6 +751,10 @@ body {
     .grid-2 {
         grid-template-columns: 1fr;
     }
+    
+    .controls-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -692,6 +777,23 @@ body {
     
     .stats {
         flex-direction: column;
+    }
+    
+    .main-layout {
+        gap: 16px;
+    }
+    
+    .controls-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .video-section, .controls-section {
+        padding: 12px;
+    }
+    
+    .video-section #video {
+        max-height: 50vh;
     }
 }
 
@@ -1631,4 +1733,208 @@ input:checked + .slider:before {
     .form-group.compact {
         min-width: 100%;
     }
+}
+
+/* 嵌入式标定面板样式 */
+.calibration-panel-embedded {
+    background: rgba(248, 249, 250, 0.7);
+    border: 1px solid rgba(233, 236, 239, 0.8);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    border-left: 4px solid rgba(74, 144, 164, 0.6);
+}
+
+.calibration-panel-embedded .calibration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(233, 236, 239, 0.6);
+}
+
+.calibration-panel-embedded .calibration-header h4 {
+    margin: 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.calibration-panel-embedded .section-description {
+    color: rgba(108, 117, 125, 0.8);
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.calibration-panel-embedded .calibration-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.calibration-panel-embedded .ground-coordinates,
+.calibration-panel-embedded .calibration-buttons,
+.calibration-panel-embedded .calibration-file {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.calibration-panel-embedded .calibration-points {
+    margin-bottom: 16px;
+}
+
+.calibration-panel-embedded .calibration-points h5 {
+    margin: 0 0 8px 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 1rem;
+}
+
+.calibration-panel-embedded .calibration-tips {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    padding: 12px;
+    border-left: 3px solid rgba(23, 162, 184, 0.6);
+}
+
+.calibration-panel-embedded .calibration-tips h5 {
+    margin: 0 0 8px 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 0.9rem;
+}
+
+.calibration-panel-embedded .calibration-tips ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.calibration-panel-embedded .calibration-tips li {
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+    color: rgba(108, 117, 125, 0.8);
+    line-height: 1.3;
+}
+
+/* 嵌入式ArUco面板样式 */
+.aruco-panel-embedded {
+    background: rgba(248, 249, 250, 0.7);
+    border: 1px solid rgba(233, 236, 239, 0.8);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    border-left: 4px solid rgba(255, 149, 0, 0.6);
+}
+
+.aruco-panel-embedded .aruco-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(233, 236, 239, 0.6);
+}
+
+.aruco-panel-embedded .aruco-header h4 {
+    margin: 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.aruco-panel-embedded .section-description {
+    color: rgba(108, 117, 125, 0.8);
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.aruco-panel-embedded .testing-status-display {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    border-left: 3px solid rgba(0, 123, 255, 0.6);
+}
+
+.aruco-panel-embedded .status-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.aruco-panel-embedded .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aruco-panel-embedded .status-label {
+    font-size: 0.85rem;
+    color: rgba(108, 117, 125, 0.8);
+    font-weight: 500;
+}
+
+.aruco-panel-embedded .status-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(73, 80, 87, 0.8);
+}
+
+.aruco-panel-embedded .detected-markers-info {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    border-left: 3px solid rgba(40, 167, 69, 0.6);
+}
+
+.aruco-panel-embedded .detected-markers-info h5 {
+    margin: 0 0 8px 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 1rem;
+}
+
+.aruco-panel-embedded .markers-list {
+    font-size: 0.85rem;
+    color: rgba(108, 117, 125, 0.8);
+}
+
+.aruco-panel-embedded .aruco-quick-settings {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    padding: 12px;
+    border-left: 3px solid rgba(255, 193, 7, 0.6);
+}
+
+.aruco-panel-embedded .aruco-quick-settings h5 {
+    margin: 0 0 8px 0;
+    color: rgba(73, 80, 87, 0.8);
+    font-size: 1rem;
+}
+
+.aruco-panel-embedded .quick-params {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.aruco-panel-embedded .quick-params .form-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+}
+
+.aruco-panel-embedded .quick-params label {
+    font-size: 0.85rem;
+    color: rgba(108, 117, 125, 0.8);
+    margin: 0;
+}
+
+.aruco-panel-embedded .quick-params .form-input {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    min-width: 80px;
 }

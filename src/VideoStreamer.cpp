@@ -568,12 +568,43 @@ bool VideoStreamer::detectArUcoMarkers(cv::Mat& frame) {
     
     // 只有当检测到的标记数量发生变化时才发送更新（避免频繁发送）
     if (currentMarkerCount != lastMarkerCount) {
-        // 构建检测结果消息
+        // 构建检测结果消息，包含详细的标记信息
         bool homographyLoaded = !getHomographyMatrix().empty();
-        std::string aruco_message = "{\"type\":\"aruco_detection_update\","
-                                   "\"detected_markers\":" + std::to_string(currentMarkerCount) + ","
-                                   "\"homography_loaded\":" + std::string(homographyLoaded ? "true" : "false") + ","
-                                   "\"matrix_status\":\"" + std::string(homographyLoaded ? "已标定" : "未标定") + "\"}";
+        std::stringstream aruco_message;
+        aruco_message << "{\"type\":\"aruco_detection_update\","
+                     << "\"detected_markers\":" << currentMarkerCount << ","
+                     << "\"homography_loaded\":" << (homographyLoaded ? "true" : "false") << ","
+                     << "\"matrix_status\":\"" << (homographyLoaded ? "已标定" : "未标定") << "\"";
+        
+        // 如果检测到标记，添加详细信息
+        if (currentMarkerCount > 0) {
+            aruco_message << ",\"markers\":[";
+            for (size_t i = 0; i < markerIds.size(); i++) {
+                int id = markerIds[i];
+                
+                // 计算标记中心
+                cv::Point2f center(0, 0);
+                for (const auto& corner : markerCorners[i]) {
+                    center += corner;
+                }
+                center *= 0.25f;
+                
+                aruco_message << "{\"id\":" << id 
+                             << ",\"center\":{\"x\":" << center.x << ",\"y\":" << center.y << "}";
+                
+                // 如果已标定，添加地面坐标
+                if (homographyLoaded) {
+                    cv::Point2f groundPoint = imageToGround(center);
+                    aruco_message << ",\"ground_coordinate\":{\"x\":" << groundPoint.x << ",\"y\":" << groundPoint.y << "}";
+                }
+                
+                aruco_message << "}";
+                if (i < markerIds.size() - 1) aruco_message << ",";
+            }
+            aruco_message << "]";
+        }
+        
+        aruco_message << "}";
         
         // 发送消息给所有连接的客户端
         {
@@ -581,7 +612,7 @@ bool VideoStreamer::detectArUcoMarkers(cv::Mat& frame) {
             for (auto conn : connections_) {
                 if (conn) {
                     try {
-                        conn->send_text(aruco_message);
+                        conn->send_text(aruco_message.str());
                     } catch (const std::exception& e) {
                         std::cerr << "Error sending ArUco detection update: " << e.what() << std::endl;
                     }
@@ -1250,6 +1281,17 @@ cv::Mat VideoStreamer::getCameraMatrix() const {
 
 cv::Mat VideoStreamer::getDistCoeffs() const {
     return cameraCalibrator_.getDistCoeffs();
+}
+
+bool VideoStreamer::getCameraCalibrationMatrices(cv::Mat& cameraMatrix, cv::Mat& distCoeffs) const {
+    if (!isCameraCalibrated()) {
+        return false;
+    }
+    
+    cameraMatrix = getCameraMatrix();
+    distCoeffs = getDistCoeffs();
+    
+    return !cameraMatrix.empty() && !distCoeffs.empty();
 }
 
 double VideoStreamer::getCalibrationError() const {
