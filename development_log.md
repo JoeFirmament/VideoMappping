@@ -1608,3 +1608,40 @@ if (detectionFrame.type() != CV_8UC3 && detectionFrame.type() != CV_8UC1) {
 - 全屏功能需要针对具体元素而非页面
 - WebSocket消息处理需要合理的防抖机制
 
+## 当前版本: v2.10-aruco-internationalization-complete
+
+### 最新更新 (2024-12-19)
+**ArUco模块国际化完整修复**
+- 修复了ArUco标记检测结果显示中的硬编码中文文本
+- 修复了坐标输入提示框的国际化问题
+- 修复了ArUco测试指南的国际化问题
+- 修复了检测质量描述的国际化问题
+- 新增14个ArUco相关翻译键
+- 完成了VideoMapping系统的完整国际化支持
+
+**OpenCV异常修复准备**
+- 分析了页面刷新时的OpenCV异常问题
+- 在broadcastFrame方法中添加了更严格的连接检查
+- 增强了Mat对象的验证和异常处理
+- 准备解决WebSocket断开时的资源清理问题
+
+### 修复的国际化问题
+**ArUco标记检测结果显示**:
+- 🎯 标记 ID → Marker ID
+- 已计算坐标 → Coordinates Calculated  
+- 图像中心 → Image Center
+- 地面坐标 → Ground Coordinates
+- 检测质量 → Detection Quality
+- 良好 → Good
+
+**坐标输入和测试指南**:
+- 坐标输入提示框支持双语
+- ArUco测试步骤指南支持双语
+- 所有用户交互文本支持国际化
+
+### 技术改进
+- 使用`window.i18n.t(key)`函数进行动态翻译
+- 提供中文后备机制确保兼容性
+- 在模板字符串中正确使用国际化函数
+- 完善了错误处理和异常捕获机制
+

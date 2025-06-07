@@ -13,7 +13,7 @@ class VideoStream {
         this.latencyElement = document.getElementById('latency');
         this.startBtn = document.getElementById('startBtn');
         this.stopBtn = document.getElementById('stopBtn');
-        this.fullscreenBtn = document.getElementById('fullscreenBtn');
+        // this.fullscreenBtn = document.getElementById('fullscreenBtn');
         
         // Debug related elements
         this.debugToggle = document.getElementById('debugToggle');
@@ -163,11 +163,11 @@ class VideoStream {
         }
         
         // Fullscreen button
-        if (this.fullscreenBtn) {
-            this.fullscreenBtn.addEventListener('click', () => {
-                this.toggleFullscreen();
-            });
-        }
+        // if (this.fullscreenBtn) {
+        //     this.fullscreenBtn.addEventListener('click', () => {
+        //         this.toggleFullscreen();
+        //     });
+        // }
         
         // Debug information switch
         if (this.debugToggle) {
@@ -296,11 +296,11 @@ class VideoStream {
         }
         
         // 绑定全屏按钮事件（更新后的版本）
-        if (this.fullscreenBtn) {
-            this.fullscreenBtn.addEventListener('click', () => {
-                this.toggleFullscreen();
-            });
-        }
+        // if (this.fullscreenBtn) {
+        //     this.fullscreenBtn.addEventListener('click', () => {
+        //         this.toggleFullscreen();
+        //     });
+        // }
 
         // ArUco相关事件监听器
         this.toggleArUcoBtn = document.getElementById('toggleArUcoBtn');
@@ -874,14 +874,16 @@ class VideoStream {
                 // 处理单应性矩阵保存结果
                 console.log('💾 [HOMOGRAPHY SAVED]:', data);
                 if (data.success) {
-                    this.updateStatus('success', '标定结果保存成功');
+                    const saveSuccessMsg = window.i18n ? window.i18n.t('calibration_results_saved') : '标定结果保存成功';
+                    this.updateStatus('success', saveSuccessMsg);
                     if (this.lastOperation) {
-                        this.lastOperation.textContent = '标定结果保存成功';
+                        this.lastOperation.textContent = saveSuccessMsg;
                     }
                 } else {
-                    this.updateStatus('error', data.error || '标定结果保存失败');
+                    const saveFailedMsg = window.i18n ? window.i18n.t('calibration_results_save_failed') : '标定结果保存失败';
+                    this.updateStatus('error', data.error || saveFailedMsg);
                     if (this.lastOperation) {
-                        this.lastOperation.textContent = '标定结果保存失败';
+                        this.lastOperation.textContent = saveFailedMsg;
                     }
                 }
             } else if (data.type === 'homography_loaded') {
@@ -906,14 +908,16 @@ class VideoStream {
                     }
                     
                     this.updateCalibrationStatus();
-                    this.updateStatus('success', '标定结果加载成功');
+                    const loadSuccessMsg = window.i18n ? window.i18n.t('calibration_results_loaded') : '标定结果加载成功';
+                    this.updateStatus('success', loadSuccessMsg);
                     if (this.lastOperation) {
-                        this.lastOperation.textContent = '标定结果加载成功';
+                        this.lastOperation.textContent = loadSuccessMsg;
                     }
                 } else {
-                    this.updateStatus('error', data.error || '标定结果加载失败');
+                    const loadFailedMsg = window.i18n ? window.i18n.t('calibration_results_load_failed') : '标定结果加载失败';
+                    this.updateStatus('error', data.error || loadFailedMsg);
                     if (this.lastOperation) {
-                        this.lastOperation.textContent = '标定结果加载失败';
+                        this.lastOperation.textContent = loadFailedMsg;
                     }
                 }
             }
@@ -1808,7 +1812,7 @@ class VideoStream {
         
         // 添加视觉反馈
         const originalText = this.toggleCameraCalibrationBtn.querySelector('span').textContent;
-        this.toggleCameraCalibrationBtn.querySelector('span').textContent = '状态切换中...';
+        this.toggleCameraCalibrationBtn.querySelector('span').textContent = window.i18n ? window.i18n.t('correction_switching') : '状态切换中...';
         
         const message = {
             action: 'toggle_camera_calibration_mode'
@@ -1819,7 +1823,7 @@ class VideoStream {
         
         // Update last operation information
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在切换相机标定模式...';
+            this.lastOperation.textContent = window.i18n ? window.i18n.t('switching_camera_calibration_mode') : '正在切换相机标定模式...';
         }
         
         // 设置超时处理 - 5秒后如果没有响应则恢复按钮状态
@@ -2286,8 +2290,20 @@ class VideoStream {
             // 启用相机校正开关
             if (this.enableCameraCorrectionToggle) {
                 this.enableCameraCorrectionToggle.disabled = false;
-                this.enableCameraCorrectionToggle.checked = true; // 默认启用校正
-                this.updateCorrectionStatus('active');
+                
+                // 🔧 修复：根据后端响应同步校正状态
+                const correctionEnabled = data.correction_enabled || false;
+                this.enableCameraCorrectionToggle.checked = correctionEnabled;
+                this.updateCorrectionStatus(correctionEnabled ? 'active' : 'inactive');
+                
+                console.log(`📸 [CAMERA CORRECTION] Synced with backend state: ${correctionEnabled ? 'enabled' : 'disabled'}`);
+                
+                // 同步浮动面板状态
+                if (this.floatingEnableCameraCorrectionToggle) {
+                    this.floatingEnableCameraCorrectionToggle.checked = correctionEnabled;
+                    this.floatingEnableCameraCorrectionToggle.disabled = false;
+                }
+                this.updateFloatingCorrectionStatus(correctionEnabled ? 'active' : 'inactive');
             }
             
             // 显示加载的标定信息
@@ -2342,25 +2358,25 @@ class VideoStream {
         
         let html = `
             <div style="text-align: center; margin-bottom: 15px;">
-                <h3 style="color: #007bff; margin: 0;">📊 相机标定结果</h3>
+                <h3 style="color: #007bff; margin: 0;">📊 ${window.i18n.t('camera_calibration_results')}</h3>
                 <button onclick="document.getElementById('calibration-debug-panel').remove()" 
                         style="position: absolute; top: 10px; right: 15px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer;">×</button>
             </div>
             
             <div style="margin-bottom: 15px;">
-                <h4 style="color: #28a745; margin: 5px 0;">✅ 标定成功完成</h4>
-                <p><strong>标定图像数量:</strong> ${data.image_count || 'N/A'} 张</p>
-                <p><strong>重投影误差:</strong> ${data.error ? data.error.toFixed(4) : 'N/A'} 像素</p>
-                <p><strong>标定质量:</strong> <span style="color: ${this.getQualityColor(data.quality)}">${this.getQualityText(data.quality)}</span></p>
+                <h4 style="color: #28a745; margin: 5px 0;">✅ ${window.i18n.t('calibration_success')}</h4>
+                <p><strong>${window.i18n.t('calibration_image_count')}:</strong> ${data.image_count || 'N/A'}</p>
+                <p><strong>${window.i18n.t('reprojection_error')}:</strong> ${data.error ? data.error.toFixed(4) : 'N/A'} ${window.i18n.t('pixels')}</p>
+                <p><strong>${window.i18n.t('calibration_quality')}:</strong> <span style="color: ${this.getQualityColor(data.quality)}">${this.getQualityText(data.quality)}</span></p>
                 ${this.getQualityAnalysis(data.error, data.image_count)}
-                <p><strong>保存路径:</strong> <code>${data.filepath || 'N/A'}</code></p>
+                <p><strong>${window.i18n.t('save_path')}:</strong> <code>${data.filepath || 'N/A'}</code></p>
             </div>
         `;
         
         if (data.camera_matrix) {
             html += `
                 <div style="margin-bottom: 15px;">
-                    <h4 style="color: #17a2b8; margin: 5px 0;">📐 相机内参矩阵</h4>
+                    <h4 style="color: #17a2b8; margin: 5px 0;">📐 ${window.i18n.t('camera_matrix')}</h4>
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace;">
                         <table style="margin: 0 auto; border-spacing: 10px;">
                             <tr>
@@ -2391,7 +2407,7 @@ class VideoStream {
         if (data.distortion_coeffs) {
             html += `
                 <div style="margin-bottom: 15px;">
-                    <h4 style="color: #6f42c1; margin: 5px 0;">🔧 畸变系数</h4>
+                    <h4 style="color: #6f42c1; margin: 5px 0;">🔧 ${window.i18n.t('distortion_coefficients')}</h4>
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace;">
                         [${data.distortion_coeffs.map(c => c.toFixed(6)).join(', ')}]
                     </div>
@@ -2410,7 +2426,7 @@ class VideoStream {
             <div style="text-align: center; margin-top: 20px;">
                 <button onclick="document.getElementById('calibration-debug-panel').remove()" 
                         style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
-                    关闭
+                    ${window.i18n.t('close')}
                 </button>
             </div>
         `;
@@ -2448,18 +2464,18 @@ class VideoStream {
         
         let html = `
             <div style="text-align: center; margin-bottom: 15px;">
-                <h3 style="color: #28a745; margin: 0;">📁 相机标定数据已加载</h3>
+                <h3 style="color: #28a745; margin: 0;">📁 ${window.i18n.t('calibration_data_loaded')}</h3>
                 <button onclick="document.getElementById('calibration-debug-panel').remove()" 
                         style="position: absolute; top: 10px; right: 15px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer;">×</button>
             </div>
             
             <div style="margin-bottom: 15px;">
-                <h4 style="color: #28a745; margin: 5px 0;">✅ 标定数据加载成功</h4>
-                <p><strong>重投影误差:</strong> ${data.error ? data.error.toFixed(4) : 'N/A'} 像素</p>
-                <p><strong>标定质量:</strong> <span style="color: ${this.getQualityColor(data.quality)}">${this.getQualityText(data.quality)}</span></p>
-                <p><strong>文件路径:</strong> <code>${data.filepath || 'N/A'}</code></p>
+                <h4 style="color: #28a745; margin: 5px 0;">✅ ${window.i18n.t('calibration_data_load_success')}</h4>
+                <p><strong>${window.i18n.t('reprojection_error')}:</strong> ${data.error ? data.error.toFixed(4) : 'N/A'} ${window.i18n.t('pixels')}</p>
+                <p><strong>${window.i18n.t('calibration_quality')}:</strong> <span style="color: ${this.getQualityColor(data.quality)}">${this.getQualityText(data.quality)}</span></p>
+                <p><strong>${window.i18n.t('file_path')}:</strong> <code>${data.filepath || 'N/A'}</code></p>
                 <div style="background: #d4edda; padding: 8px; border-radius: 5px; color: #155724; font-size: 11px;">
-                    ℹ️ 相机标定已激活，所有视频流和图像处理将自动进行畸变校正
+                    ℹ️ ${window.i18n.t('calibration_activated_info')}
                 </div>
             </div>
         `;
@@ -2467,7 +2483,7 @@ class VideoStream {
         if (data.camera_matrix) {
             html += `
                 <div style="margin-bottom: 15px;">
-                    <h4 style="color: #17a2b8; margin: 5px 0;">📐 相机内参矩阵</h4>
+                    <h4 style="color: #17a2b8; margin: 5px 0;">📐 ${window.i18n.t('camera_matrix')}</h4>
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace;">
                         <table style="margin: 0 auto; border-spacing: 10px;">
                             <tr>
@@ -2498,7 +2514,7 @@ class VideoStream {
         if (data.distortion_coeffs) {
             html += `
                 <div style="margin-bottom: 15px;">
-                    <h4 style="color: #6f42c1; margin: 5px 0;">🔧 畸变系数</h4>
+                    <h4 style="color: #6f42c1; margin: 5px 0;">🔧 ${window.i18n.t('distortion_coefficients')}</h4>
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace;">
                         [${data.distortion_coeffs.map(c => c.toFixed(6)).join(', ')}]
                     </div>
@@ -2751,7 +2767,13 @@ class VideoStream {
             console.log('🎯 [ARUCO TESTING] 测试模式已启用');
             
             if (this.toggleArUcoBtn) {
-                this.toggleArUcoBtn.textContent = '禁用 ArUco 测试';
+                const span = this.toggleArUcoBtn.querySelector('span');
+                const disableText = window.i18n ? window.i18n.t('disable_aruco_testing') : '禁用 ArUco 测试';
+                if (span) {
+                    span.textContent = disableText;
+                } else {
+                    this.toggleArUcoBtn.textContent = disableText;
+                }
                 this.toggleArUcoBtn.classList.remove('btn-primary');
                 this.toggleArUcoBtn.classList.add('btn-danger');
             }
@@ -2772,25 +2794,27 @@ class VideoStream {
             if (coordinateTestPanel) coordinateTestPanel.style.display = 'none';
             
             if (detectionStatusDisplay) {
-                detectionStatusDisplay.textContent = '测试模式运行中';
+                detectionStatusDisplay.textContent = window.i18n ? window.i18n.t('test_mode_running') : '测试模式运行中';
                 detectionStatusDisplay.classList.add('status-active');
             }
             
             // 检查矩阵状态
             if (data.homography_loaded) {
                 if (matrixStatusDisplay) {
-                    matrixStatusDisplay.textContent = '已标定';
+                    matrixStatusDisplay.textContent = window.i18n ? window.i18n.t('calibrated') : '已标定';
                     matrixStatusDisplay.classList.remove('matrix-not-ready');
                     matrixStatusDisplay.classList.add('matrix-ready');
                 }
-                this.updateStatus('success', 'ArUco测试模式已启用，单应性矩阵已加载');
+                const successMsg = window.i18n ? window.i18n.t('aruco_test_enabled_matrix_loaded') : 'ArUco测试模式已启用，单应性矩阵已加载';
+                this.updateStatus('success', successMsg);
             } else {
                 if (matrixStatusDisplay) {
-                    matrixStatusDisplay.textContent = '未标定';
+                    matrixStatusDisplay.textContent = window.i18n ? window.i18n.t('not_calibrated') : '未标定';
                     matrixStatusDisplay.classList.remove('matrix-ready');
                     matrixStatusDisplay.classList.add('matrix-not-ready');
                 }
-                this.updateStatus('warning', 'ArUco测试模式已启用，但未检测到单应性矩阵');
+                const warningMsg = window.i18n ? window.i18n.t('aruco_test_enabled_no_matrix') : 'ArUco测试模式已启用，但未检测到单应性矩阵';
+                this.updateStatus('warning', warningMsg);
             }
             
         } else {
@@ -2798,7 +2822,13 @@ class VideoStream {
             console.log('🎯 [ARUCO TESTING] 测试模式已禁用');
             
             if (this.toggleArUcoBtn) {
-                this.toggleArUcoBtn.textContent = '启用 ArUco 测试';
+                const span = this.toggleArUcoBtn.querySelector('span');
+                const enableText = window.i18n ? window.i18n.t('enable_aruco_testing') : '启用 ArUco 测试';
+                if (span) {
+                    span.textContent = enableText;
+                } else {
+                    this.toggleArUcoBtn.textContent = enableText;
+                }
                 this.toggleArUcoBtn.classList.remove('btn-danger');
                 this.toggleArUcoBtn.classList.add('btn-primary');
             }
@@ -2813,11 +2843,12 @@ class VideoStream {
             }
             
             if (detectionStatusDisplay) {
-                detectionStatusDisplay.textContent = '等待检测';
+                detectionStatusDisplay.textContent = window.i18n ? window.i18n.t('waiting_detection') : '等待检测';
                 detectionStatusDisplay.classList.remove('status-active');
             }
             
-            this.updateStatus('info', 'ArUco测试模式已禁用');
+            const disabledMsg = window.i18n ? window.i18n.t('aruco_test_disabled') : 'ArUco测试模式已禁用';
+            this.updateStatus('info', disabledMsg);
         }
         
         // 更新检测到的标记数量
@@ -2861,11 +2892,14 @@ class VideoStream {
         const detectionStatusDisplay = document.getElementById('detectionStatusDisplay');
         if (detectionStatusDisplay) {
             if (data.detected_markers > 0) {
-                detectionStatusDisplay.textContent = `检测到 ${data.detected_markers} 个标记`;
+                const detectedText = window.i18n ? 
+                    window.i18n.t('detected_markers').replace('{count}', data.detected_markers) : 
+                    `检测到 ${data.detected_markers} 个标记`;
+                detectionStatusDisplay.textContent = detectedText;
                 detectionStatusDisplay.classList.remove('status-active');
                 detectionStatusDisplay.classList.add('detecting-found');
             } else {
-                detectionStatusDisplay.textContent = '搜索标记中...';
+                detectionStatusDisplay.textContent = window.i18n ? window.i18n.t('searching_markers') : '搜索标记中...';
                 detectionStatusDisplay.classList.remove('detecting-found');
                 detectionStatusDisplay.classList.add('status-active');
             }
@@ -2880,7 +2914,8 @@ class VideoStream {
 
     handleMarkerCoordinatesSet(data) {
         if (data.success) {
-            this.updateStatus('success', '标记坐标设置成功');
+            const successMsg = window.i18n ? window.i18n.t('marker_coordinates_set_success') : '标记坐标设置成功';
+            this.updateStatus('success', successMsg);
             // 更新快速显示列表
             if (data.marker_id !== undefined && data.x !== undefined && data.y !== undefined) {
                 if (!this.markerCoordinates) {
@@ -2890,23 +2925,28 @@ class VideoStream {
                 this.updateMarkersQuickDisplay();
             }
         } else {
-            this.updateStatus('error', '标记坐标设置失败');
+            const failedMsg = window.i18n ? window.i18n.t('marker_coordinates_set_failed') : '标记坐标设置失败';
+            this.updateStatus('error', failedMsg);
         }
     }
 
     handleMarkerCoordinatesSaved(data) {
         if (data.success) {
-            this.updateStatus('success', '标记坐标保存成功');
+            const successMsg = window.i18n ? window.i18n.t('marker_coordinates_saved_success') : '标记坐标保存成功';
+            this.updateStatus('success', successMsg);
         } else {
-            this.updateStatus('error', '标记坐标保存失败');
+            const failedMsg = window.i18n ? window.i18n.t('marker_coordinates_saved_failed') : '标记坐标保存失败';
+            this.updateStatus('error', failedMsg);
         }
     }
 
     handleMarkerCoordinatesLoaded(data) {
         if (data.success) {
-            this.updateStatus('success', '标记坐标加载成功');
+            const successMsg = window.i18n ? window.i18n.t('marker_coordinates_loaded_success') : '标记坐标加载成功';
+            this.updateStatus('success', successMsg);
         } else {
-            this.updateStatus('error', '标记坐标加载失败');
+            const failedMsg = window.i18n ? window.i18n.t('marker_coordinates_loaded_failed') : '标记坐标加载失败';
+            this.updateStatus('error', failedMsg);
         }
     }
 
@@ -3121,7 +3161,7 @@ class VideoStream {
 
         // 更新最近操作信息
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在切换坐标标定模式...';
+            this.lastOperation.textContent = window.i18n ? window.i18n.t('switching_coordinate_calibration_mode') : '正在切换坐标标定模式...';
         }
     }
 
@@ -3198,10 +3238,13 @@ class VideoStream {
 
     // 显示坐标输入对话框
     showCoordinateInputDialog(imageX, imageY) {
-        const groundX = prompt('请输入地面坐标 X (毫米):', '0');
+        const groundXPrompt = window.i18n ? window.i18n.t('input_ground_x_prompt') : '请输入地面坐标 X (毫米):';
+        const groundYPrompt = window.i18n ? window.i18n.t('input_ground_y_prompt') : '请输入地面坐标 Y (毫米):';
+        
+        const groundX = prompt(groundXPrompt, '0');
         if (groundX === null) return; // 用户取消
 
-        const groundY = prompt('请输入地面坐标 Y (毫米):', '0');
+        const groundY = prompt(groundYPrompt, '0');
         if (groundY === null) return; // 用户取消
 
         const groundXFloat = parseFloat(groundX);
@@ -3311,7 +3354,7 @@ class VideoStream {
         }
 
         if (this.calibrationPoints.length < 4) {
-            alert('至少需要4个标定点才能计算单应性矩阵！');
+            alert(window.i18n ? window.i18n.t('minimum_points_required') : '至少需要4个标定点才能计算单应性矩阵！');
             return;
         }
 
@@ -3324,13 +3367,18 @@ class VideoStream {
 
         // 更新最近操作信息
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在计算单应性矩阵...';
+            this.lastOperation.textContent = window.i18n ? window.i18n.t('computing_homography_matrix') : '正在计算单应性矩阵...';
         }
 
         // 禁用按钮，防止重复点击
         if (this.computeHomographyBtn) {
             this.computeHomographyBtn.disabled = true;
-            this.computeHomographyBtn.textContent = '计算中...';
+            const span = this.computeHomographyBtn.querySelector('span');
+            if (span) {
+                span.textContent = window.i18n ? window.i18n.t('computing') : '计算中...';
+            } else {
+                this.computeHomographyBtn.textContent = window.i18n ? window.i18n.t('computing') : '计算中...';
+            }
         }
     }
 
@@ -3350,7 +3398,7 @@ class VideoStream {
 
         // 更新最近操作信息
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在保存标定结果...';
+            this.lastOperation.textContent = window.i18n ? window.i18n.t('saving_calibration_results') : '正在保存标定结果...';
         }
     }
 
@@ -3370,7 +3418,7 @@ class VideoStream {
 
         // 更新最近操作信息
         if (this.lastOperation) {
-            this.lastOperation.textContent = '正在加载标定结果...';
+            this.lastOperation.textContent = window.i18n ? window.i18n.t('loading_calibration_results') : '正在加载标定结果...';
         }
     }
 
@@ -3380,17 +3428,21 @@ class VideoStream {
         if (!pointsList) return;
 
         if (this.calibrationPoints.length === 0) {
-            pointsList.innerHTML = '<p class="text-muted">暂无标定点</p>';
+            const noPointsText = window.i18n ? window.i18n.t('no_calibration_points') : '暂无标定点';
+            pointsList.innerHTML = `<p class="text-muted">${noPointsText}</p>`;
             return;
         }
 
+        const imageText = window.i18n ? window.i18n.t('image_coord') : '图像';
+        const groundText = window.i18n ? window.i18n.t('ground_coord') : '地面';
+        
         let html = '';
         this.calibrationPoints.forEach((point, index) => {
             html += `
                 <div class="point-item">
                     <span class="point-number">${index + 1}.</span>
-                    <span class="image-coord">图像: (${point.image.x.toFixed(1)}, ${point.image.y.toFixed(1)})</span>
-                    <span class="ground-coord">地面: (${point.ground.x}, ${point.ground.y})</span>
+                    <span class="image-coord">${imageText}: (${point.image.x.toFixed(1)}, ${point.image.y.toFixed(1)})</span>
+                    <span class="ground-coord">${groundText}: (${point.ground.x}, ${point.ground.y})</span>
                 </div>
             `;
         });
@@ -3406,10 +3458,21 @@ class VideoStream {
         // 更新计算按钮状态
         if (this.computeHomographyBtn) {
             this.computeHomographyBtn.disabled = !canCompute || !this.calibrationMode;
+            const span = this.computeHomographyBtn.querySelector('span');
             if (canCompute && this.calibrationMode) {
-                this.computeHomographyBtn.textContent = '计算单应性矩阵';
+                const computeText = window.i18n ? window.i18n.t('compute_homography_matrix') : '计算单应性矩阵';
+                if (span) {
+                    span.textContent = computeText;
+                } else {
+                    this.computeHomographyBtn.textContent = computeText;
+                }
             } else {
-                this.computeHomographyBtn.textContent = `需要${4 - pointCount}个点`;
+                const needPointsText = window.i18n ? window.i18n.t('need_points').replace('{count}', 4 - pointCount) : `需要${4 - pointCount}个点`;
+                if (span) {
+                    span.textContent = needPointsText;
+                } else {
+                    this.computeHomographyBtn.textContent = needPointsText;
+                }
             }
         }
 
@@ -3434,7 +3497,9 @@ class VideoStream {
         console.log(`📊 [CALIBRATION STATUS] 标定点数量: ${pointCount}, 可计算: ${canCompute}, 已标定: ${this.calibrated}`);
 
         // 更新状态消息
-        const statusMessage = this.calibrationMode ? '单应性矩阵标定模式已启用' : '单应性矩阵标定模式已禁用';
+        const statusMessage = this.calibrationMode ? 
+            (window.i18n ? window.i18n.t('homography_calibration_mode_enabled') : '单应性矩阵标定模式已启用') : 
+            (window.i18n ? window.i18n.t('homography_calibration_mode_disabled') : '单应性矩阵标定模式已禁用');
         this.updateStatus('success', statusMessage);
 
         if (this.lastOperation) {
@@ -3443,14 +3508,22 @@ class VideoStream {
 
         // 显示使用提示
         if (this.calibrationMode) {
+            const modeTitle = window.i18n ? window.i18n.t('homography_calibration_mode_title') : '单应性矩阵标定模式';
+            const tipResolution = window.i18n ? window.i18n.t('calibration_tip_resolution') : '画面保持1920×1080分辨率确保计算精度';
+            const tipClickPoints = window.i18n ? window.i18n.t('calibration_tip_click_points') : '点击视频中的地面格子交叉点进行标定';
+            const tipFullscreen = window.i18n ? window.i18n.t('calibration_tip_fullscreen') : '按F11进入全屏模式，更精确选点';
+            const tipInputCoords = window.i18n ? window.i18n.t('calibration_tip_input_coords') : '点击后输入该点的地面坐标（毫米）';
+            const tipSelectPoints = window.i18n ? window.i18n.t('calibration_tip_select_points') : '建议选择画面四角和中心的交叉点';
+            const tipShortcuts = window.i18n ? window.i18n.t('calibration_tip_shortcuts') : '快捷键：F11切换全屏 | ESC退出全屏';
+            
             const tipMessage = `
-                💡 <strong>单应性矩阵标定模式</strong><br/>
-                📐 <strong>画面保持1920×1080分辨率确保计算精度</strong><br/>
-                • 点击视频中的地面格子交叉点进行标定<br/>
-                • 🖥️ <strong>按F11进入全屏模式，更精确选点</strong><br/>
-                • 点击后输入该点的地面坐标（毫米）<br/>
-                • 建议选择画面四角和中心的交叉点<br/>
-                • <strong>快捷键：F11切换全屏 | ESC退出全屏</strong>
+                💡 <strong>${modeTitle}</strong><br/>
+                📐 <strong>${tipResolution}</strong><br/>
+                • ${tipClickPoints}<br/>
+                • 🖥️ <strong>${tipFullscreen}</strong><br/>
+                • ${tipInputCoords}<br/>
+                • ${tipSelectPoints}<br/>
+                • <strong>${tipShortcuts}</strong>
             `;
             this.showTemporaryMessage(tipMessage, 'info', 12000);
         }
@@ -3469,7 +3542,7 @@ class VideoStream {
         if (this.toggleCalibrationBtn) {
             const span = this.toggleCalibrationBtn.querySelector('span');
             if (span) {
-                span.textContent = this.calibrationMode ? '退出标定模式' : '进入标定模式';
+                span.textContent = this.calibrationMode ? window.i18n.t('exit_calibration_mode') : window.i18n.t('enter_calibration_mode');
             }
             this.toggleCalibrationBtn.className = this.calibrationMode ? 'btn btn-warning' : 'btn btn-primary';
             
@@ -3482,26 +3555,17 @@ class VideoStream {
             calibrationPanel.style.display = this.calibrationMode ? 'block' : 'none';
         }
 
-        // 在标定模式下完全隐藏所有浮动元素，保持画面洁净
-        const fullscreenContainer = document.querySelector('.fullscreen-container');
+        // 在标定模式下隐藏浮动元素，保持画面洁净
         const videoOverlayControls = document.querySelector('.video-overlay-controls');
         
         if (this.calibrationMode) {
-            // 进入标定模式：隐藏所有浮动按钮，保持画面完全洁净
-            if (fullscreenContainer) {
-                fullscreenContainer.style.display = 'none';
-                console.log('🔄 [CALIBRATION MODE] 已隐藏全屏按钮，保持画面洁净');
-            }
+            // 进入标定模式：隐藏视频覆盖控件，保持画面完全洁净
             if (videoOverlayControls) {
                 videoOverlayControls.style.display = 'none';
                 console.log('🔄 [CALIBRATION MODE] 已隐藏视频覆盖控件');
             }
         } else {
             // 退出标定模式：恢复正常显示
-            if (fullscreenContainer) {
-                fullscreenContainer.style.display = 'block';
-                console.log('🔄 [CALIBRATION MODE] 已恢复全屏按钮显示');
-            }
             if (videoOverlayControls) {
                 videoOverlayControls.style.display = 'flex';
                 console.log('🔄 [CALIBRATION MODE] 已显示视频覆盖控件');
@@ -3522,7 +3586,13 @@ class VideoStream {
         // 恢复计算按钮状态
         if (this.computeHomographyBtn) {
             this.computeHomographyBtn.disabled = false;
-            this.computeHomographyBtn.textContent = '计算单应性矩阵';
+            const span = this.computeHomographyBtn.querySelector('span');
+            const computeText = window.i18n ? window.i18n.t('compute_homography_matrix') : '计算单应性矩阵';
+            if (span) {
+                span.textContent = computeText;
+            } else {
+                this.computeHomographyBtn.textContent = computeText;
+            }
         }
 
         if (data.success) {
@@ -3538,22 +3608,26 @@ class VideoStream {
 
             // 更新状态
             this.updateCalibrationStatus();
-            this.updateStatus('success', '单应性矩阵计算成功');
+            const successMessage = window.i18n ? window.i18n.t('homography_computation_success') : '单应性矩阵计算成功';
+            this.updateStatus('success', successMessage);
 
             if (this.lastOperation) {
-                this.lastOperation.textContent = '单应性矩阵计算成功';
+                this.lastOperation.textContent = successMessage;
             }
 
-            this.showTemporaryMessage('✅ 标定成功！现在可以保存标定结果或进行坐标测试', 'success');
+            const calibrationSuccessMsg = window.i18n ? window.i18n.t('calibration_success_message') : '标定成功！现在可以保存标定结果或进行坐标测试';
+            this.showTemporaryMessage('✅ ' + calibrationSuccessMsg, 'success');
         } else {
             console.error('❌ [HOMOGRAPHY] 单应性矩阵计算失败:', data.error);
-            this.updateStatus('error', data.error || '单应性矩阵计算失败');
+            const failedMessage = window.i18n ? window.i18n.t('homography_computation_failed') : '单应性矩阵计算失败';
+            this.updateStatus('error', data.error || failedMessage);
 
             if (this.lastOperation) {
-                this.lastOperation.textContent = '单应性矩阵计算失败';
+                this.lastOperation.textContent = failedMessage;
             }
 
-            this.showTemporaryMessage('❌ 标定失败：' + (data.error || '请检查标定点分布'), 'error');
+            const calibrationFailedMsg = window.i18n ? window.i18n.t('calibration_failed_message') : '请检查标定点分布';
+            this.showTemporaryMessage('❌ ' + (window.i18n ? window.i18n.t('calibration_failed_message') : '标定失败：') + (data.error || calibrationFailedMsg), 'error');
         }
     }
 
@@ -3586,7 +3660,7 @@ class VideoStream {
         console.log('🎯 [ARUCO TESTING] 发送测试模式切换请求:', message);
         this.ws.send(JSON.stringify(message));
 
-        this.updateStatus('info', '正在切换ArUco测试模式...');
+        this.updateStatus('info', window.i18n ? window.i18n.t('switching_aruco_testing_mode') : '正在切换ArUco测试模式...');
         
         // 设置500ms的防抖时间
         this.arucoToggleTimeout = setTimeout(() => {
@@ -3602,11 +3676,11 @@ class VideoStream {
             <div class="guide-section">
                 <h5>📋 测试步骤</h5>
                 <ol>
-                    <li>确保已完成单应性矩阵标定或加载了矩阵文件</li>
-                    <li>将ArUco标记放置在地面的已知位置</li>
-                    <li>启用ArUco测试模式</li>
-                    <li>观察检测结果和计算出的地面坐标</li>
-                    <li>比较计算坐标与实际位置来验证精度</li>
+                    <li>${window.i18n ? window.i18n.t('ensure_homography_calibration_completed') : '确保已完成单应性矩阵标定或加载了矩阵文件'}</li>
+                    <li>${window.i18n ? window.i18n.t('place_aruco_markers_known_positions') : '将ArUco标记放置在地面的已知位置'}</li>
+                    <li>${window.i18n ? window.i18n.t('enable_aruco_test_mode') : '启用ArUco测试模式'}</li>
+                    <li>${window.i18n ? window.i18n.t('observe_detection_results') : '观察检测结果和计算出的地面坐标'}</li>
+                    <li>${window.i18n ? window.i18n.t('compare_calculated_coordinates') : '比较计算坐标与实际位置来验证精度'}</li>
                 </ol>
             </div>
             <div class="guide-section">
@@ -3636,25 +3710,32 @@ class VideoStream {
         
         let resultHTML = '';
         data.markers.forEach(marker => {
+            const markerIdText = window.i18n ? window.i18n.t('marker_id') : '标记 ID';
+            const coordinatesCalculatedText = window.i18n ? window.i18n.t('coordinates_calculated') : '已计算坐标';
+            const noMatrixText = window.i18n ? window.i18n.t('no_matrix') : '无矩阵';
+            const imageCenterText = window.i18n ? window.i18n.t('image_center') : '图像中心';
+            const groundCoordinatesText = window.i18n ? window.i18n.t('ground_coordinates') : '地面坐标';
+            const detectionQualityText = window.i18n ? window.i18n.t('detection_quality') : '检测质量';
+            
             resultHTML += `
                 <div class="marker-result-card">
                     <div class="marker-header">
-                        <h5>🎯 标记 ID: ${marker.id}</h5>
-                        ${marker.ground_coordinate ? '<span class="coordinate-badge">已计算坐标</span>' : '<span class="coordinate-badge no-matrix">无矩阵</span>'}
+                        <h5>🎯 ${markerIdText}: ${marker.id}</h5>
+                        ${marker.ground_coordinate ? `<span class="coordinate-badge">${coordinatesCalculatedText}</span>` : `<span class="coordinate-badge no-matrix">${noMatrixText}</span>`}
                     </div>
                     <div class="marker-details">
                         <div class="detail-row">
-                            <span class="detail-label">图像中心:</span>
+                            <span class="detail-label">${imageCenterText}:</span>
                             <span class="detail-value">(${marker.center.x.toFixed(1)}, ${marker.center.y.toFixed(1)})</span>
                         </div>
                         ${marker.ground_coordinate ? `
                         <div class="detail-row">
-                            <span class="detail-label">地面坐标:</span>
+                            <span class="detail-label">${groundCoordinatesText}:</span>
                             <span class="detail-value coordinate-value">(${marker.ground_coordinate.x.toFixed(1)}, ${marker.ground_coordinate.y.toFixed(1)}) mm</span>
                         </div>
                         ` : ''}
                         <div class="detail-row">
-                            <span class="detail-label">检测质量:</span>
+                            <span class="detail-label">${detectionQualityText}:</span>
                             <span class="detail-value">${this.getDetectionQuality(marker)}</span>
                         </div>
                     </div>
@@ -3669,7 +3750,7 @@ class VideoStream {
     getDetectionQuality(marker) {
         // 这里可以根据marker的属性来判断检测质量
         // 目前简单返回"良好"
-        return '良好';
+        return window.i18n ? window.i18n.t('quality_good') : '良好';
     }
 
     // 更新单应性矩阵显示
@@ -3698,37 +3779,47 @@ class VideoStream {
             if (!matrixDisplayDiv) {
                 matrixDisplayDiv = document.createElement('div');
                 matrixDisplayDiv.className = 'matrix-display';
-                matrixDisplayDiv.innerHTML = '<h4>📊 计算结果</h4>';
+                matrixDisplayDiv.innerHTML = `<h4>📊 ${window.i18n ? window.i18n.t('calculation_results') : '计算结果'}</h4>`;
                 calibrationPanel.appendChild(matrixDisplayDiv);
             }
             
             if (Array.isArray(matrixData) && matrixData.length === 9) {
+                const successTitle = window.i18n ? window.i18n.t('homography_matrix_success') : '单应性矩阵计算成功';
+                const copyButtonText = window.i18n ? window.i18n.t('copy_matrix_data') : '复制矩阵数据';
+                const matrixSavedText = window.i18n ? window.i18n.t('matrix_saved_aruco_test') : '矩阵已保存，现在可以进行ArUco测试验证';
+                const calculationResultsTitle = window.i18n ? window.i18n.t('calculation_results') : '计算结果';
+                
                 const matrixInfo = `
                     <div class="matrix-result">
-                        <h5>✅ 单应性矩阵计算成功</h5>
+                        <h5>✅ ${successTitle}</h5>
                         <div class="matrix-values">
                             <pre>[${matrixData[0].toFixed(6)}, ${matrixData[1].toFixed(6)}, ${matrixData[2].toFixed(6)}]
 [${matrixData[3].toFixed(6)}, ${matrixData[4].toFixed(6)}, ${matrixData[5].toFixed(6)}]
 [${matrixData[6].toFixed(8)}, ${matrixData[7].toFixed(8)}, ${matrixData[8].toFixed(6)}]</pre>
                         </div>
                         <div class="matrix-actions">
-                            <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${JSON.stringify(matrixData)}')">复制矩阵数据</button>
-                            <small class="text-muted">矩阵已保存，现在可以进行ArUco测试验证</small>
+                            <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${JSON.stringify(matrixData)}')">${copyButtonText}</button>
+                            <small class="text-muted">${matrixSavedText}</small>
                         </div>
                     </div>
                 `;
-                matrixDisplayDiv.innerHTML = '<h4>📊 计算结果</h4>' + matrixInfo;
+                matrixDisplayDiv.innerHTML = `<h4>📊 ${calculationResultsTitle}</h4>` + matrixInfo;
             }
         }
         
         // 显示成功提示
+        const successTitle = window.i18n ? window.i18n.t('homography_calculation_success_title') : '单应性矩阵计算成功！';
+        const matrixDisplayedText = window.i18n ? window.i18n.t('matrix_displayed_in_panel') : '矩阵数据已显示在标定面板中';
+        const canSaveText = window.i18n ? window.i18n.t('can_save_calibration_results') : '现在可以保存标定结果';
+        const switchToArucoText = window.i18n ? window.i18n.t('switch_to_aruco_test') : '或切换到ArUco测试模式验证精度';
+        
         this.showTemporaryMessage(`
             <div class="matrix-success-tip">
-                <h5>🎉 单应性矩阵计算成功！</h5>
+                <h5>🎉 ${successTitle}</h5>
                 <ul>
-                    <li>✅ 矩阵数据已显示在标定面板中</li>
-                    <li>💾 现在可以保存标定结果</li>
-                    <li>🎯 或切换到ArUco测试模式验证精度</li>
+                    <li>✅ ${matrixDisplayedText}</li>
+                    <li>💾 ${canSaveText}</li>
+                    <li>🎯 ${switchToArucoText}</li>
                 </ul>
             </div>
         `, 'success', 6000);
@@ -3742,39 +3833,43 @@ class VideoStream {
         
         console.error(`🚨 [ERROR NOTIFICATION] ${error_type}: ${title} - ${message}`);
         
+        // 翻译title和message（如果它们是翻译键）
+        const translatedTitle = window.i18n ? window.i18n.t(title) : title;
+        const translatedMessage = window.i18n ? window.i18n.t(message) : message;
+        
         // 根据错误类型显示不同级别的通知
         let statusType = 'error';
-        let displayMessage = `${title}: ${message}`;
+        let displayMessage = `${translatedTitle}: ${translatedMessage}`;
         
         switch (error_type) {
             case 'camera_warning':
                 statusType = 'warning';
-                this.showErrorToast(title, message, 'warning', 5000);
+                this.showErrorToast(translatedTitle, translatedMessage, 'warning', 5000);
                 break;
             case 'camera_critical':
                 statusType = 'error';
-                this.showErrorToast(title, message, 'error', 10000);
-                this.showCameraErrorModal(title, message);
+                this.showErrorToast(translatedTitle, translatedMessage, 'error', 10000);
+                this.showCameraErrorModal(translatedTitle, translatedMessage);
                 break;
             case 'camera_recovery':
                 statusType = 'info';
-                this.showErrorToast(title, message, 'success', 3000);
+                this.showErrorToast(translatedTitle, translatedMessage, 'success', 3000);
                 break;
             case 'camera_recovery_success':
                 statusType = 'success';
-                this.showErrorToast(title, message, 'success', 5000);
+                this.showErrorToast(translatedTitle, translatedMessage, 'success', 5000);
                 break;
             case 'camera_recovery_failed':
                 statusType = 'error';
-                this.showErrorToast(title, message, 'error', 10000);
+                this.showErrorToast(translatedTitle, translatedMessage, 'error', 10000);
                 break;
             default:
-                this.showErrorToast(title, message, 'info', 5000);
+                this.showErrorToast(translatedTitle, translatedMessage, 'info', 5000);
         }
         
         // 更新状态显示
         this.updateStatus(statusType, displayMessage);
-        this.updateLastOperation(`${error_type}: ${message}`);
+        this.updateLastOperation(`${error_type}: ${translatedMessage}`);
     }
 
     // 显示错误提示框
@@ -3827,17 +3922,17 @@ class VideoStream {
                 <div class="modal-body">
                     <p>${message}</p>
                     <div class="error-suggestions">
-                        <h4>建议解决方案：</h4>
+                        <h4>${window.i18n ? window.i18n.t('suggested_solutions') : '建议解决方案：'}</h4>
                         <ul>
-                            <li>检查摄像头是否被其他程序占用</li>
-                            <li>尝试重新连接摄像头设备</li>
-                            <li>重启VideoMapping程序</li>
-                            <li>检查设备权限设置</li>
+                            <li>${window.i18n ? window.i18n.t('check_camera_usage') : '检查摄像头是否被其他程序占用'}</li>
+                            <li>${window.i18n ? window.i18n.t('try_reconnect_camera') : '尝试重新连接摄像头设备'}</li>
+                            <li>${window.i18n ? window.i18n.t('restart_videomapping') : '重启VideoMapping程序'}</li>
+                            <li>${window.i18n ? window.i18n.t('check_device_permissions') : '检查设备权限设置'}</li>
                         </ul>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="this.closest('.camera-error-modal').remove()">确定</button>
+                    <button class="btn btn-primary" onclick="this.closest('.camera-error-modal').remove()">${window.i18n ? window.i18n.t('confirm') : '确定'}</button>
                 </div>
             </div>
         `;
@@ -3867,7 +3962,9 @@ class VideoStream {
                     this.showFullscreenCalibrationTip();
                 }).catch(err => {
                     console.error('视频全屏请求失败:', err);
-                    this.showErrorToast('全屏失败', '无法进入视频全屏模式，请检查浏览器权限', 'error', 3000);
+                    const failedTitle = window.i18n ? window.i18n.t('fullscreen_failed') : '全屏失败';
+                    const permissionError = window.i18n ? window.i18n.t('fullscreen_permission_error') : '无法进入视频全屏模式，请检查浏览器权限';
+                    this.showErrorToast(failedTitle, permissionError, 'error', 3000);
                 });
             } else if (videoElement && videoElement.mozRequestFullScreen) {
                 videoElement.mozRequestFullScreen();
@@ -3993,7 +4090,7 @@ class VideoStream {
             URL.revokeObjectURL(url);
         }, 0);
 
-        this.showTemporaryMessage('已下载单应性矩阵标定文件', 'success');
+        this.showTemporaryMessage(window.i18n ? window.i18n.t('homography_calibration_downloaded') : '已下载单应性矩阵标定文件', 'success');
         console.log('📥 [DOWNLOAD] Homography calibration file downloaded');
     }
 
@@ -4017,10 +4114,10 @@ class VideoStream {
                 URL.revokeObjectURL(url);
             }, 0);
 
-            this.showTemporaryMessage('已下载相机内参标定文件', 'success');
+            this.showTemporaryMessage(window.i18n ? window.i18n.t('camera_calibration_downloaded') : '已下载相机内参标定文件', 'success');
             console.log('📥 [DOWNLOAD] Camera calibration file downloaded:', data.filename);
         } else {
-            this.showTemporaryMessage(data.error || '下载相机内参标定文件失败', 'error');
+            this.showTemporaryMessage(data.error || (window.i18n ? window.i18n.t('camera_calibration_download_failed') : '下载相机内参标定文件失败'), 'error');
             console.error('❌ [DOWNLOAD] Camera calibration download failed:', data.error);
         }
     }

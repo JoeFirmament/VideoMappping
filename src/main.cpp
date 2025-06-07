@@ -72,7 +72,9 @@ int main(int argc, char** argv) {
                 
                 // 处理分辨率设置请求
                 if (action == "set_resolution") {
-                    int width = 640, height = 480; // 默认值
+                    // 获取当前分辨率作为默认值，避免硬编码
+                    auto current_res = streamer.getCurrentResolution();
+                    int width = current_res.first, height = current_res.second;
                     
                     // 解析width字段
                     size_t width_pos = data.find("\"width\":");
@@ -396,6 +398,9 @@ int main(int argc, char** argv) {
                     bool success = streamer.loadCameraCalibrationData(filename);
                     
                     if (success) {
+                        // 🔧 修复：加载标定数据后自动启用相机校正
+                        streamer.setCameraCorrectionEnabled(true);
+                        std::cout << "📸 [CAMERA CORRECTION] Auto-enabled after calibration load" << std::endl;
                         // 获取加载的标定信息
                         cv::Mat cameraMatrix = streamer.getCameraMatrix();
                         cv::Mat distCoeffs = streamer.getDistCoeffs();
@@ -448,7 +453,8 @@ int main(int argc, char** argv) {
                         else quality = "NEEDS_IMPROVEMENT";
                         
                         response << "\"quality\":\"" << quality << "\",";
-                        response << "\"filepath\":\"" << (filename.empty() ? "/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml" : filename) << "\"";
+                        response << "\"filepath\":\"" << (filename.empty() ? "/home/radxa/Qworkspace/VideoMapping/data/camera_calibration.xml" : filename) << "\",";
+                        response << "\"correction_enabled\":true";  // 告知前端校正已自动启用
                         response << "}";
                         
                         conn.send_text(response.str());

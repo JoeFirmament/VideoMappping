@@ -455,15 +455,15 @@ body {
 }
 
 .status-value.success {
-    color: rgba(90, 130, 100, 0.8);
+    color: rgba(138, 43, 226, 0.8); /* 紫色表示成功 */
 }
 
 .status-value.error {
-    color: rgba(150, 100, 100, 0.8);
+    color: rgba(25, 25, 112, 0.8); /* 深蓝色表示错误 */
 }
 
 .status-value.warning {
-    color: rgba(160, 140, 100, 0.8);
+    color: rgba(255, 149, 0, 0.8); /* 橙色表示警告 */
 }
 
 /* ===== 视频显示区域 ===== */

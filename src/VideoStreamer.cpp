@@ -10,12 +10,12 @@ using namespace std::chrono_literals;
 
 VideoStreamer::VideoStreamer() : width_(1920), height_(1080), fps_(30) {
     // 初始化
-    // 尝试加载已有的标定数据
-    std::ifstream file(calibrationFilePath_);
-    if (file.good()) {
-        file.close();
-        loadHomography(calibrationFilePath_);
-    }
+    // 注释掉自动加载标定数据的逻辑，让用户手动选择是否加载
+    // std::ifstream file(calibrationFilePath_);
+    // if (file.good()) {
+    //     file.close();
+    //     loadHomography(calibrationFilePath_);
+    // }
     
     // 启用保存标定图像功能
     cameraCalibrator_.setSaveCalibrationImages(true);
@@ -90,12 +90,22 @@ bool VideoStreamer::initialize(int camera_id, int width, int height, int fps) {
     cout << "🔍 [RESOLUTION CHECK] 检查摄像头支持的分辨率..." << endl;
     auto supportedResolutions = getSupportedResolutions();
     
-    // 设置摄像头参数
+    // 高性能摄像头设置
+    cout << "🚀 [HIGH PERFORMANCE SETUP] 配置高性能摄像头参数..." << endl;
     cout << "📐 [RESOLUTION SET] 尝试设置分辨率为 " << width_ << "x" << height_ << endl;
+    
+    // 基本参数设置
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
     cap_.set(cv::CAP_PROP_FPS, fps_);
     cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    
+    // 高性能优化设置
+    cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);  // 减少缓冲区大小，降低延迟
+    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);  // 禁用自动曝光以提高帧率稳定性
+    cap_.set(cv::CAP_PROP_AUTOFOCUS, 0);  // 禁用自动对焦以减少处理时间
+    
+    cout << "⚡ [PERFORMANCE] 已启用高性能优化设置" << endl;
 
     // 验证参数
     double actual_width = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
@@ -220,14 +230,14 @@ bool VideoStreamer::autoDetectCamera() {
 }
 
 std::vector<std::pair<int, int>> VideoStreamer::getSupportedResolutions() {
-    // 常见的摄像头支持的分辨率
+    // 高性能分辨率列表 - 优先支持高分辨率以获得更好的图像质量
     std::vector<std::pair<int, int>> resolutions = {
-        {640, 480},    // VGA
-        {800, 600},    // SVGA
-        {1024, 768},   // XGA
+        {1920, 1080},  // Full HD - 优先
         {1280, 720},   // HD
         {1280, 960},   // SXGA-
-        {1920, 1080}   // Full HD
+        {1024, 768},   // XGA
+        {800, 600},    // SVGA
+        {640, 480}     // VGA - 兼容性保留
     };
     
     // 如果摄像头未打开，返回默认列表
@@ -313,22 +323,17 @@ void VideoStreamer::start() {
     
     // 性能优化：启动广播线程时添加帧率控制
     thread broadcast_thread([this]() {
-        // 动态帧率控制 - 降低初始目标帧率以提高稳定性
-        int adaptiveFPS = fps_;
+        // 高性能模式 - 使用原始FPS设置，不进行降速
+        int targetFPS = fps_;
         
-        // 根据系统能力自适应调整目标FPS
-        if (fps_ > 25) {
-            adaptiveFPS = 20;  // 降低目标FPS到20以提高稳定性
-            std::cout << "📉 [ADAPTIVE FPS] Reduced target FPS from " << fps_ << " to " << adaptiveFPS << " for better stability" << std::endl;
-        }
+        std::cout << "🚀 [HIGH PERFORMANCE MODE] Target FPS: " << targetFPS << " (High frame rate mode enabled)" << std::endl;
         
         auto lastFrameTime = std::chrono::high_resolution_clock::now();
-        auto targetFrameInterval = std::chrono::microseconds(1000000 / adaptiveFPS); // 目标帧间隔
+        auto targetFrameInterval = std::chrono::microseconds(1000000 / targetFPS); // 目标帧间隔
         
         // 性能监控变量
         int broadcastCount = 0;
         auto performanceReportTime = std::chrono::steady_clock::now();
-        int consecutiveOverruns = 0;
         
         while (running_) {
             auto frameStart = std::chrono::high_resolution_clock::now();
@@ -338,46 +343,26 @@ void VideoStreamer::start() {
             broadcastCount++;
             
             auto frameEnd = std::chrono::high_resolution_clock::now();
-            auto frameProcessingTime = frameEnd - frameStart;
             
-            // 动态调整睡眠时间以维持目标帧率
+            // 精确的帧率控制 - 只在必要时睡眠
             auto elapsedSinceLastFrame = frameEnd - lastFrameTime;
             auto sleepTime = targetFrameInterval - elapsedSinceLastFrame;
             
-            if (sleepTime > std::chrono::microseconds(0)) {
+            if (sleepTime > std::chrono::microseconds(100)) { // 只有超过100微秒才睡眠
                 std::this_thread::sleep_for(sleepTime);
-                consecutiveOverruns = 0;  // 重置超时计数
             } else {
-                // 如果处理时间过长，给出警告并动态调整FPS
-                auto overrun = std::chrono::duration_cast<std::chrono::milliseconds>(elapsedSinceLastFrame - targetFrameInterval).count();
-                if (overrun > 10) { // 超过10ms认为是显著延迟
-                    consecutiveOverruns++;
-                    
-                    // 每5次输出一次警告，避免日志过多
-                    if (consecutiveOverruns % 5 == 1) {
-                        std::cerr << "⚠️ [FRAME TIMING] Frame processing overrun: " << overrun << "ms (count: " << consecutiveOverruns << ")" << std::endl;
-                    }
-                    
-                    // 如果连续超时过多，进一步降低FPS
-                    if (consecutiveOverruns > 10 && adaptiveFPS > 15) {
-                        adaptiveFPS = std::max(15, adaptiveFPS - 2);
-                        targetFrameInterval = std::chrono::microseconds(1000000 / adaptiveFPS);
-                        std::cout << "📉 [ADAPTIVE FPS] Further reduced target FPS to " << adaptiveFPS << " due to performance issues" << std::endl;
-                        consecutiveOverruns = 0;
-                    }
-                }
-                // 不睡眠，直接处理下一帧
+                // 使用yield让出CPU时间片，但不强制睡眠
                 std::this_thread::yield();
             }
             
             lastFrameTime = std::chrono::high_resolution_clock::now();
             
-            // 每10秒输出一次广播线程性能报告
+            // 每10秒输出一次性能报告
             auto broadcastReportTime = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::seconds>(broadcastReportTime - performanceReportTime).count() >= 10) {
                 double actualFPS = broadcastCount / 10.0;
-                std::cout << "📡 [BROADCAST THREAD] Actual FPS: " << std::fixed << std::setprecision(2) << actualFPS 
-                          << " (Target: " << adaptiveFPS << ", Original: " << fps_ << ")" << std::endl;
+                std::cout << "🎯 [HIGH PERFORMANCE] Actual FPS: " << std::fixed << std::setprecision(2) << actualFPS 
+                          << " (Target: " << targetFPS << ")" << std::endl;
                 
                 // 重置计数器
                 broadcastCount = 0;
@@ -667,32 +652,30 @@ void VideoStreamer::drawCalibrationPoints(cv::Mat& frame) {
         cv::circle(frame, points[i].first, 12, cv::Scalar(0, 255, 255), 2);
         // 绘制内圈
         cv::circle(frame, points[i].first, 5, cv::Scalar(0, 0, 255), -1);
-        // 绘制十字线
+        // 绘制十字线 - 使用青色替代绿色
         cv::line(frame, cv::Point(points[i].first.x - 15, points[i].first.y),
                  cv::Point(points[i].first.x + 15, points[i].first.y),
-                 cv::Scalar(0, 255, 0), 1);
+                 cv::Scalar(209, 206, 0), 1); // 青色 (0, 206, 209)
         cv::line(frame, cv::Point(points[i].first.x, points[i].first.y - 15),
                  cv::Point(points[i].first.x, points[i].first.y + 15),
-                 cv::Scalar(0, 255, 0), 1);
+                 cv::Scalar(209, 206, 0), 1); // 青色 (0, 206, 209)
         
         // 绘制点编号
         cv::putText(frame, std::to_string(i + 1), 
                    cv::Point(points[i].first.x + 15, points[i].first.y - 10), 
                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
         
-        // 绘制地面坐标
+        // 绘制地面坐标 - 使用深蓝色替代红色
         std::string coordText = "(" + std::to_string(int(points[i].second.x)) + "," + 
                                std::to_string(int(points[i].second.y)) + ")";
         cv::putText(frame, coordText, 
                    cv::Point(points[i].first.x + 15, points[i].first.y + 15), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
+                   cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(112, 25, 25), 2); // 深蓝色 (25, 25, 112)
     }
     
     // 如果已经标定，绘制网格线来显示标定效果
     if (homographyMapper_.isCalibrated() && points.size() >= 4) {
-        // 绘制网格线来显示标定效果
-        int gridSize = 50; // 网格大小（地面坐标系中）
-        int gridCount = 10; // 网格数量
+        // 🔧 修复：基于实际标定点范围绘制有意义的网格线
         
         // 找到标定点的边界框
         float minX = std::numeric_limits<float>::max();
@@ -707,37 +690,83 @@ void VideoStreamer::drawCalibrationPoints(cv::Mat& frame) {
             maxY = std::max(maxY, point.second.y);
         }
         
-        // 绘制水平线
-        for (int i = 0; i <= gridCount; ++i) {
-            float y = minY + i * gridSize;
-            if (y > maxY) break;
-            
-            cv::Point2f start = groundToImage(cv::Point2f(minX, y));
-            cv::Point2f end = groundToImage(cv::Point2f(maxX, y));
-            
-            cv::line(frame, start, end, cv::Scalar(0, 255, 0), 1);
-            
-            // 标记坐标
-            cv::putText(frame, std::to_string(int(y)), 
-                       cv::Point(start.x + 5, start.y), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0), 1);
+        // 计算标定区域的实际尺寸
+        float rangeX = maxX - minX;
+        float rangeY = maxY - minY;
+        
+        // 🔧 修复：根据实际范围确定合适的网格间距
+        float gridSpacing = 50.0f; // 基础网格间距50mm
+        
+        // 如果标定区域很大，增加网格间距；如果很小，减少网格间距
+        if (rangeX > 500 || rangeY > 500) {
+            gridSpacing = 100.0f; // 大区域使用100mm间距
+        } else if (rangeX < 200 && rangeY < 200) {
+            gridSpacing = 25.0f;  // 小区域使用25mm间距
         }
         
-        // 绘制垂直线
-        for (int i = 0; i <= gridCount; ++i) {
-            float x = minX + i * gridSize;
-            if (x > maxX) break;
+        // 🔧 修复：扩展显示区域，但保持合理的范围
+        float expandRatio = 0.3f; // 向外扩展30%
+        minX -= rangeX * expandRatio;
+        maxX += rangeX * expandRatio;
+        minY -= rangeY * expandRatio;
+        maxY += rangeY * expandRatio;
+        
+        // 🔧 修复：对齐网格线到合理的坐标值
+        // 将边界对齐到网格间距的倍数
+        float alignedMinX = std::floor(minX / gridSpacing) * gridSpacing;
+        float alignedMaxX = std::ceil(maxX / gridSpacing) * gridSpacing;
+        float alignedMinY = std::floor(minY / gridSpacing) * gridSpacing;
+        float alignedMaxY = std::ceil(maxY / gridSpacing) * gridSpacing;
+        
+        // 🔧 修复：绘制水平网格线（Y坐标固定）
+        for (float y = alignedMinY; y <= alignedMaxY; y += gridSpacing) {
+            cv::Point2f start = groundToImage(cv::Point2f(alignedMinX, y));
+            cv::Point2f end = groundToImage(cv::Point2f(alignedMaxX, y));
             
-            cv::Point2f start = groundToImage(cv::Point2f(x, minY));
-            cv::Point2f end = groundToImage(cv::Point2f(x, maxY));
-            
-            cv::line(frame, start, end, cv::Scalar(0, 255, 0), 1);
-            
-            // 标记坐标
-            cv::putText(frame, std::to_string(int(x)), 
-                       cv::Point(start.x, start.y + 15), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0), 1);
+            // 检查线条是否在图像范围内
+            if ((start.x >= -50 && start.x <= frame.cols + 50) || (end.x >= -50 && end.x <= frame.cols + 50)) {
+                if ((start.y >= -50 && start.y <= frame.rows + 50) || (end.y >= -50 && end.y <= frame.rows + 50)) {
+                    
+                    // 绘制网格线 - 使用青色
+                    cv::line(frame, start, end, cv::Scalar(209, 206, 0), 2, cv::LINE_AA); // 青色 BGR(209, 206, 0)
+                    
+                    // 在合适的位置显示Y坐标值
+                    if (start.x >= 0 && start.x < frame.cols - 50 && start.y >= 15 && start.y < frame.rows - 5) {
+                        cv::putText(frame, std::to_string(int(y)), 
+                                   cv::Point(std::max(5.0f, start.x + 5), start.y - 5), 
+                                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(209, 206, 0), 1, cv::LINE_AA);
+                    }
+                }
+            }
         }
+        
+        // 🔧 修复：绘制垂直网格线（X坐标固定）
+        for (float x = alignedMinX; x <= alignedMaxX; x += gridSpacing) {
+            cv::Point2f start = groundToImage(cv::Point2f(x, alignedMinY));
+            cv::Point2f end = groundToImage(cv::Point2f(x, alignedMaxY));
+            
+            // 检查线条是否在图像范围内
+            if ((start.x >= -50 && start.x <= frame.cols + 50) || (end.x >= -50 && end.x <= frame.cols + 50)) {
+                if ((start.y >= -50 && start.y <= frame.rows + 50) || (end.y >= -50 && end.y <= frame.rows + 50)) {
+                    
+                    // 绘制网格线 - 使用青色
+                    cv::line(frame, start, end, cv::Scalar(209, 206, 0), 2, cv::LINE_AA); // 青色 BGR(209, 206, 0)
+                    
+                    // 在合适的位置显示X坐标值
+                    if (start.x >= 5 && start.x < frame.cols - 30 && start.y >= 0 && start.y < frame.rows - 20) {
+                        cv::putText(frame, std::to_string(int(x)), 
+                                   cv::Point(start.x + 5, std::min((float)frame.rows - 5, start.y + 20)), 
+                                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(209, 206, 0), 1, cv::LINE_AA);
+                    }
+                }
+            }
+        }
+        
+        // 🔧 新增：显示网格信息
+        std::string gridInfo = "Grid: " + std::to_string(int(gridSpacing)) + "mm, Range: " + 
+                              std::to_string(int(rangeX)) + "x" + std::to_string(int(rangeY)) + "mm";
+        cv::putText(frame, gridInfo, cv::Point(10, 120), cv::FONT_HERSHEY_SIMPLEX, 0.5, 
+                   cv::Scalar(209, 206, 0), 1, cv::LINE_AA);
     }
     
     // 添加标定状态信息
@@ -745,26 +774,50 @@ void VideoStreamer::drawCalibrationPoints(cv::Mat& frame) {
     cv::putText(frame, statusText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
     
     if (homographyMapper_.isCalibrated()) {
-        cv::putText(frame, "Calibrated: YES", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+        cv::putText(frame, "Calibrated: YES", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(226, 43, 138), 2); // 紫色 (138, 43, 226) 表示成功
     } else {
-        cv::putText(frame, "Calibrated: NO (Need 4+ points)", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+        cv::putText(frame, "Calibrated: NO (Need 4+ points)", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(112, 25, 25), 2); // 深蓝色 (25, 25, 112) 表示错误
     }
     
-    cv::putText(frame, "Points: " + std::to_string(points.size()), cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 0), 2);
+    cv::putText(frame, "Points: " + std::to_string(points.size()), cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 123, 0), 2); // 蓝色 (0, 123, 255) 表示信息
 }
 
 void VideoStreamer::broadcastFrame() {
     static int frame_count = 0;  // 静态帧计数器
-    
-    // 性能优化：添加帧跳过机制
-    static auto lastBroadcastTime = std::chrono::high_resolution_clock::now();
+    static auto lastBroadcastTime = std::chrono::steady_clock::now();
     static int skippedFrames = 0;
     
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    auto timeSinceLastBroadcast = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastBroadcastTime).count();
+    // 严格的连接检查 - 在任何Mat操作之前进行
+    {
+        std::lock_guard<std::mutex> conn_lock(conn_mutex_);
+        if (connections_.empty()) {
+            return; // 没有连接时直接返回，避免不必要的处理
+        }
+    }
     
-    // 如果上次广播时间太短且有积压，跳过此帧
-    if (timeSinceLastBroadcast < 30 && skippedFrames < 2) { // 最小间隔30ms，最多连续跳过2帧
+    // 检查运行状态
+    if (!running_) {
+        return;
+    }
+    
+    // 帧率控制逻辑
+    auto currentTime = std::chrono::steady_clock::now();
+    auto timeSinceLastBroadcast = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastBroadcastTime);
+    
+    // 动态帧率控制：根据连接数调整
+    int targetInterval;
+    {
+        std::lock_guard<std::mutex> conn_lock(conn_mutex_);
+        if (connections_.size() <= 1) {
+            targetInterval = 33; // ~30 FPS for single connection
+        } else if (connections_.size() <= 2) {
+            targetInterval = 40; // ~25 FPS for 2 connections
+        } else {
+            targetInterval = 50; // ~20 FPS for 3+ connections
+        }
+    }
+    
+    if (timeSinceLastBroadcast.count() < targetInterval) {
         skippedFrames++;
         return;
     }
@@ -775,52 +828,94 @@ void VideoStreamer::broadcastFrame() {
     // 性能监控：广播开始时间
     auto broadcastStart = std::chrono::high_resolution_clock::now();
     
-    // 检查是否有连接
-    if (connections_.empty()) {
-        return;
+    // 再次检查连接状态（双重检查）
+    {
+        std::lock_guard<std::mutex> conn_lock(conn_mutex_);
+        if (connections_.empty()) {
+            return;
+        }
     }
-    
+
     cv::Mat processedFrame;
     
     // 性能监控：帧获取时间
     auto frameGetStart = std::chrono::high_resolution_clock::now();
     
-    // 根据模式选择合适的帧分辨率
-    if (cameraCalibrationMode_) {
-        // 相机标定模式：使用优化的显示帧（已包含角点绘制）
-        processedFrame = getDisplayFrame();
-        if (processedFrame.empty()) {
-            return;
+    // 根据模式选择合适的帧分辨率 - 添加异常处理
+    try {
+        if (cameraCalibrationMode_) {
+            // 相机标定模式：使用优化的显示帧（已包含角点绘制）
+            processedFrame = getDisplayFrame();
+            if (processedFrame.empty()) {
+                std::cerr << "Warning: getDisplayFrame() returned empty frame in calibration mode" << std::endl;
+                return;
+            }
+        } else {
+            // 普通模式：使用原始帧 - 添加更严格的检查
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (frame_.empty() || frame_.cols <= 0 || frame_.rows <= 0) {
+                std::cerr << "Warning: frame_ is empty or invalid in normal mode" << std::endl;
+                return;
+            }
+            
+            // 验证Mat对象的有效性
+            if (frame_.type() != CV_8UC3 && frame_.type() != CV_8UC1) {
+                std::cerr << "Warning: frame_ has invalid type: " << frame_.type() << std::endl;
+                return;
+            }
+            
+            processedFrame = frame_.clone();
+            if (processedFrame.empty()) {
+                std::cerr << "Warning: frame_.clone() failed" << std::endl;
+                return;
+            }
         }
-    } else {
-        // 普通模式：使用原始帧
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (frame_.empty()) {
-            return;
-        }
-        processedFrame = frame_.clone();
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV error in frame acquisition: " << e.what() << std::endl;
+        return;
+    } catch (const std::exception& e) {
+        std::cerr << "Error in frame acquisition: " << e.what() << std::endl;
+        return;
     }
     
     auto frameGetEnd = std::chrono::high_resolution_clock::now();
     double frameGetTime = std::chrono::duration<double, std::milli>(frameGetEnd - frameGetStart).count();
     
-    // 验证帧数据完整性
+    // 验证帧数据完整性 - 更严格的检查
     if (processedFrame.empty() || processedFrame.cols <= 0 || processedFrame.rows <= 0) {
-        std::cerr << "Warning: Invalid frame data, skipping broadcast" << std::endl;
+        std::cerr << "Warning: Invalid frame data after acquisition, skipping broadcast" << std::endl;
         return;
+    }
+    
+    // 验证Mat对象的连续性和类型
+    if (!processedFrame.isContinuous()) {
+        try {
+            processedFrame = processedFrame.clone();
+        } catch (const cv::Exception& e) {
+            std::cerr << "OpenCV error making frame continuous: " << e.what() << std::endl;
+            return;
+        }
     }
     
     // 性能监控：处理时间
     auto processingStart = std::chrono::high_resolution_clock::now();
     
-    // 如果在标定模式下，绘制标定点
-    if (calibrationMode_) {
-        drawCalibrationPoints(processedFrame);
-    }
-    
-    // 如果在ArUco模式下，检测并绘制ArUco标记
-    if (arucoMode_) {
-        detectArUcoMarkers(processedFrame);
+    // 如果在标定模式下，绘制标定点 - 添加异常处理
+    try {
+        if (calibrationMode_) {
+            drawCalibrationPoints(processedFrame);
+        }
+        
+        // 如果在ArUco模式下，检测并绘制ArUco标记
+        if (arucoMode_) {
+            detectArUcoMarkers(processedFrame);
+        }
+    } catch (const cv::Exception& e) {
+        std::cerr << "OpenCV error in frame processing: " << e.what() << std::endl;
+        return;
+    } catch (const std::exception& e) {
+        std::cerr << "Error in frame processing: " << e.what() << std::endl;
+        return;
     }
     
     auto processingEnd = std::chrono::high_resolution_clock::now();
@@ -835,7 +930,12 @@ void VideoStreamer::broadcastFrame() {
     // 验证帧是否连续
     if (!processedFrame.isContinuous()) {
         // 如果不连续，创建一个连续的副本
-        processedFrame = processedFrame.clone();
+        try {
+            processedFrame = processedFrame.clone();
+        } catch (const cv::Exception& e) {
+            std::cerr << "OpenCV error making frame continuous for encoding: " << e.what() << std::endl;
+            return;
+        }
     }
     
     // 性能监控：JPEG编码时间
@@ -1015,7 +1115,7 @@ void VideoStreamer::captureThread() {
             if (frameReadFailureCount_ > 0) {
                 std::cout << "📹 [CAMERA RECOVERY] 摄像头恢复正常，重置失败计数器" << std::endl;
                 frameReadFailureCount_ = 0;
-                sendErrorNotification("camera_recovery", "摄像头已恢复", "设备重新正常工作");
+                sendErrorNotification("camera_recovery", "camera_recovered", "device_working_normally");
             }
             
             if (frame.empty()) {
@@ -1104,7 +1204,7 @@ void VideoStreamer::captureThread() {
                             
                             cv::drawChessboardCorners(processedFrame, cameraCalibrator_.getBoardSize(), corners, found);
                             cv::putText(processedFrame, "Chessboard OK", cv::Point(processedFrame.cols - 160, 30),
-                                      cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+                                      cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(226, 43, 138), 2, cv::LINE_AA); // 紫色 (138, 43, 226) 表示成功
                         } else {
                             cv::putText(processedFrame, "Searching...", cv::Point(processedFrame.cols - 150, 30),
                                       cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2, cv::LINE_AA);
@@ -1122,16 +1222,16 @@ void VideoStreamer::captureThread() {
                 }
             } else if (calibrationMode_) {
                 // 坐标变换标定模式的简洁提示
-                cv::putText(processedFrame, "Click to add point", cv::Point(processedFrame.cols - 180, 30),
-                          cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 200, 0), 2, cv::LINE_AA);
+                                    cv::putText(processedFrame, "Click to add point", cv::Point(processedFrame.cols - 180, 30),
+                          cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 149, 255), 2, cv::LINE_AA); // 橙色 (255, 149, 0) 表示提示
             } else {
                 // 正常模式：显示校正状态
                 if (isCameraCalibrated() && cameraCorrectionEnabled_) {
                     cv::putText(processedFrame, "Correction: ON", cv::Point(10, processedFrame.rows - 20),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+                              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(226, 43, 138), 1, cv::LINE_AA); // 紫色 (138, 43, 226) 表示成功
                 } else if (isCameraCalibrated()) {
                     cv::putText(processedFrame, "Correction: OFF", cv::Point(10, processedFrame.rows - 20),
-                              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1, cv::LINE_AA);
+                              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(112, 25, 25), 1, cv::LINE_AA); // 深蓝色 (25, 25, 112) 表示错误
                 }
             }
             

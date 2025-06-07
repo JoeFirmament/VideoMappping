@@ -697,21 +697,21 @@
     transform: translateX(0);
 }
 
-/* 不同类型的提示框颜色 */
+/* 不同类型的提示框颜色 - 色盲友好 */
 .error-toast-error {
-    border-left-color: #dc3545;
+    border-left-color: #191970; /* 深蓝色替代红色 */
 }
 
 .error-toast-warning {
-    border-left-color: #ffc107;
+    border-left-color: #ff9500; /* 橙色替代黄色 */
 }
 
 .error-toast-success {
-    border-left-color: #28a745;
+    border-left-color: #8a2be2; /* 紫色替代绿色 */
 }
 
 .error-toast-info {
-    border-left-color: #007bff;
+    border-left-color: #007bff; /* 保持蓝色 */
 }
 
 /* 提示框头部 */

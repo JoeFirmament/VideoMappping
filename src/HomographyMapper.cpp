@@ -286,7 +286,7 @@ void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int
             
             // 绘制标记边框（绿色）
             for (int j = 0; j < 4; j++) {
-                cv::line(frame, corners[j], corners[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+                cv::line(frame, corners[j], corners[(j + 1) % 4], cv::Scalar(209, 206, 0), 2); // 青色 (0, 206, 209) 替代绿色
             }
             
             // 绘制角点（红色，更大更明显）
@@ -315,17 +315,17 @@ void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int
             center *= 0.25f;
             
             // 绘制中心点（蓝色）
-            cv::circle(frame, center, 4, cv::Scalar(255, 0, 0), -1);
+            cv::circle(frame, center, 4, cv::Scalar(112, 25, 25), -1); // 深蓝色 (25, 25, 112) 替代红色
             
             // 在中心点旁边添加说明文字
             cv::putText(frame, "Center", cv::Point(center.x + 20, center.y + 5), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(112, 25, 25), 1); // 深蓝色 (25, 25, 112) 替代红色
             
             // 绘制ID（绿色，更大字体）
             std::string idText = "ID:" + std::to_string(id);
             cv::putText(frame, idText, 
                        cv::Point(center.x + 15, center.y - 10), 
-                       cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 255, 0), 3);
+                       cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(209, 206, 0), 3); // 青色 (0, 206, 209) 替代绿色
             
             // 如果该标记有对应的地面坐标，显示地面坐标（蓝色）
             auto it = markerGroundCoordinates_.find(id);
@@ -334,7 +334,7 @@ void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int
                                       std::to_string(int(it->second.y)) + ")";
                 cv::putText(frame, coordText, 
                            cv::Point(center.x + 15, center.y + 15), 
-                           cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 0, 0), 2);
+                           cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(112, 25, 25), 2); // 深蓝色 (25, 25, 112) 替代红色
             }
                 
             // 如果已标定，显示图像到地面的映射（黄色，放大字体）
@@ -344,7 +344,7 @@ void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int
                                       std::to_string(int(groundPoint.y)) + ")";
                 cv::putText(frame, mappedText, 
                            cv::Point(center.x + 15, center.y + 40), 
-                           cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 255), 3);
+                           cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 149, 255), 3); // 橙色 (255, 149, 0) 替代黄色
                 
                 // 添加调试信息
                 std::cout << "[ArUco Position] Marker " << id << " Ground coord: (" 
@@ -353,18 +353,18 @@ void HomographyMapper::drawDetectedMarkers(cv::Mat& frame, const std::vector<int
                 // 显示未标定状态
                 cv::putText(frame, "No Matrix", 
                            cv::Point(center.x + 15, center.y + 40), 
-                           cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+                           cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(112, 25, 25), 2); // 深蓝色 (25, 25, 112) 替代红色
             }
         }
         
         // 清理左上角显示，使用简洁的英文信息
         std::string statsText = "ArUco: " + std::to_string(markerIds.size()) + " markers";
         cv::putText(frame, statsText, cv::Point(10, 30), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+                   cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 123, 0), 2); // 蓝色 (0, 123, 255) 表示信息
         
         // 显示标定状态（简化）
         std::string calibrationStatus = calibrated_ ? "Matrix: OK" : "Matrix: NO";
-        cv::Scalar statusColor = calibrated_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+        cv::Scalar statusColor = calibrated_ ? cv::Scalar(226, 43, 138) : cv::Scalar(112, 25, 25); // 紫色表示成功，深蓝色表示错误
         cv::putText(frame, calibrationStatus, cv::Point(10, 60), 
                    cv::FONT_HERSHEY_SIMPLEX, 0.7, statusColor, 2);
     }
@@ -527,8 +527,8 @@ void HomographyMapper::drawGridLines(cv::Mat& frame, int gridSize, int numLines)
         cv::Point2f imageStart = groundToImage(groundStart);
         cv::Point2f imageEnd = groundToImage(groundEnd);
         
-        // 绘制水平线
-        cv::line(frame, imageStart, imageEnd, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        // 绘制水平线 - 使用青色替代绿色
+        cv::line(frame, imageStart, imageEnd, cv::Scalar(209, 206, 0), 1, cv::LINE_AA);
     }
     
     // 绘制垂直线
@@ -541,8 +541,8 @@ void HomographyMapper::drawGridLines(cv::Mat& frame, int gridSize, int numLines)
         cv::Point2f imageStart = groundToImage(groundStart);
         cv::Point2f imageEnd = groundToImage(groundEnd);
         
-        // 绘制垂直线
-        cv::line(frame, imageStart, imageEnd, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        // 绘制垂直线 - 使用青色替代绿色
+        cv::line(frame, imageStart, imageEnd, cv::Scalar(209, 206, 0), 1, cv::LINE_AA);
     }
 }
 
@@ -691,16 +691,16 @@ void HomographyMapper::drawCoordinateSystem(cv::Mat& frame) const {
     if (originInFrame) {
         // 原点用更大的圆标记
         cv::circle(frame, imageOrigin_, 8, cv::Scalar(0, 0, 255), -1);
-        // X轴（红色，更粗）
-        cv::line(frame, imageOrigin_, xAxisEnd, cv::Scalar(0, 0, 255), axisThickness);
-        // Y轴（蓝色，更粗）
-        cv::line(frame, imageOrigin_, yAxisEnd, cv::Scalar(255, 0, 0), axisThickness);
+        // X轴 - 使用橙色替代红色
+        cv::line(frame, imageOrigin_, xAxisEnd, cv::Scalar(0, 149, 255), axisThickness);
+        // Y轴 - 使用深蓝色替代蓝色
+        cv::line(frame, imageOrigin_, yAxisEnd, cv::Scalar(112, 25, 25), axisThickness);
         
         // 添加坐标轴标签
         cv::putText(frame, "X", cv::Point(xAxisEnd.x + 10, xAxisEnd.y), 
-                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2);
+                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 149, 255), 2); // 橙色 (255, 149, 0)
         cv::putText(frame, "Y", cv::Point(yAxisEnd.x, yAxisEnd.y - 10), 
-                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 0, 0), 2);
+                   cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(112, 25, 25), 2); // 深蓝色 (25, 25, 112)
     } else {
         // 原点在画面外，绘制坐标轴的可见部分
         // 计算与画面边界的交点

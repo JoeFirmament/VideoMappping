@@ -387,7 +387,7 @@ bool CameraCalibrator::addCalibrationImage(const cv::Mat& image) {
                                 std::to_string(int(metrics.sharpness)) + 
                                 " Conf:" + std::to_string(int(metrics.cornerConfidence * 100)) + "%)";
         cv::putText(imageWithCorners, qualityText, cv::Point(10, 30), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+                   cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(226, 43, 138), 2); // 紫色 (138, 43, 226) 表示成功
         
         // 保存图像
         std::cout << "Trying to save image to: " << filename << std::endl;
