@@ -33,3 +33,16 @@ config.json
 *.jpeg
 *.png
 *.gif
+
+# 开发文档和日志文件（不推送到GitHub）
+*_log.md
+development_log.md
+DEVELOPMENT_LOG.md
+current_dev_status.md
+debug_log.md
+optimization_log.md
+开发规范.md
+
+# 允许的文档文件（在上面规则之后，用!取消忽略）
+!README.md
+!image.png
